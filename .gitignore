@@ -2,7 +2,9 @@
 .DS_Store
 
 # Local Codex runtime state; generated per working repository, not source
-.codex/
+.codex/*
+!.codex/INSTALL.md
+!.codex/install-local.sh
 
 # Generated local test harness runs
 tests/out/
