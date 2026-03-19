@@ -250,75 +250,10 @@ def validate_artifact_condition(path: Path, condition: str | None) -> None:
     raise AssertionError(f"unsupported artifact condition '{condition}'")
 
 
-def assert_interaction_protocol_contract(
-    state: AssertionState, *, layer: str, lower_markers: set[str]
-) -> None:
-    if "interaction.preflight.passed" not in lower_markers:
-        fail("missing required preflight marker 'interaction.preflight.passed'", layer=layer)
-
-    session_path, _, _ = artifact_matches(
-        state.run_dir, state.filesystem_files, ".codex/multi-agent/session.json"
+def assert_specialist_user_route(state: AssertionState, *, layer: str) -> None:
+    team_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/team.json"
     )
-    if session_path is None:
-        fail("missing session artifact '.codex/multi-agent/session.json'", layer=layer)
-    session_payload = json.loads(session_path.read_text(encoding="utf-8"))
-
-    required_keys = [
-        "execution_mode",
-        "awaiting_user_reply",
-        "awaiting_mode",
-        "question_stage_id",
-        "question_batch_index",
-        "question_ids",
-        "reply_route",
-        "last_sync_turn_id",
-    ]
-    for key in required_keys:
-        if key not in session_payload:
-            fail(f"session.json missing interaction key '{key}'", layer=layer)
-
-    execution_mode = session_payload["execution_mode"]
-    if execution_mode not in ("parallel", "serial"):
-        fail("session.json execution_mode must be 'parallel' or 'serial'", layer=layer)
-
-    if not isinstance(session_payload["awaiting_user_reply"], bool):
-        fail("session.json awaiting_user_reply must be boolean", layer=layer)
-
-    if session_payload["awaiting_mode"] not in ("interactive_ask", "message_ask"):
-        fail("session.json awaiting_mode must be 'interactive_ask' or 'message_ask'", layer=layer)
-
-    if not isinstance(session_payload["question_stage_id"], str) or not session_payload[
-        "question_stage_id"
-    ]:
-        fail("session.json question_stage_id must be non-empty string", layer=layer)
-
-    if not isinstance(session_payload["question_batch_index"], int) or session_payload[
-        "question_batch_index"
-    ] < 1:
-        fail("session.json question_batch_index must be integer >= 1", layer=layer)
-
-    question_ids = session_payload["question_ids"]
-    if not isinstance(question_ids, list) or not question_ids:
-        fail("session.json question_ids must be non-empty list", layer=layer)
-    if not all(isinstance(x, str) and x for x in question_ids):
-        fail("session.json question_ids must contain non-empty string ids", layer=layer)
-
-    reply_route = session_payload["reply_route"]
-    if not isinstance(reply_route, dict) or not reply_route:
-        fail("session.json reply_route must be non-empty object", layer=layer)
-
-    if execution_mode == "parallel" and len(reply_route) < len(question_ids):
-        fail(
-            "parallel execution requires reply_route coverage for the active question ids",
-            layer=layer,
-        )
-
-    if not isinstance(session_payload["last_sync_turn_id"], str) or not session_payload[
-        "last_sync_turn_id"
-    ]:
-        fail("session.json last_sync_turn_id must be non-empty string", layer=layer)
-
-    team_path, _, _ = artifact_matches(state.run_dir, state.filesystem_files, ".codex/multi-agent/team.json")
     if team_path is None:
         fail("missing team artifact '.codex/multi-agent/team.json'", layer=layer)
     team_payload = json.loads(team_path.read_text(encoding="utf-8"))
@@ -335,6 +270,125 @@ def assert_interaction_protocol_contract(
                     f"team.json role '{role_id}' must use user_interaction_route='via_lead'",
                     layer=layer,
                 )
+
+
+def _collect_indentation_violations(lines: Sequence[str]) -> List[str]:
+    violations: List[str] = []
+    for raw in lines:
+        if not raw or not raw.startswith(" "):
+            continue
+        leading_spaces = len(raw) - len(raw.lstrip(" "))
+        if leading_spaces not in (2, 4):
+            violations.append(raw)
+    return violations
+
+
+def _parse_expanded_block(lines: Sequence[str], start_idx: int) -> Dict[str, str]:
+    fields: Dict[str, str] = {}
+    i = start_idx + 1
+    while i < len(lines):
+        line = lines[i]
+        if not line.startswith(" "):
+            break
+        primary = re.match(r"^\s{2}([a-z_]+):\s*(.*)$", line)
+        secondary = re.match(r"^\s{4}([a-z_]+):\s*(.*)$", line)
+        if primary:
+            fields[primary.group(1)] = primary.group(2)
+        elif secondary:
+            fields[secondary.group(1)] = secondary.group(2)
+        i += 1
+    return fields
+
+
+def assert_interaction_display_contract(state: AssertionState, *, layer: str) -> None:
+    lines = state.session_text.splitlines()
+
+    indent_violations = _collect_indentation_violations(lines)
+    if indent_violations:
+        fail(f"indentation contract violated: {indent_violations[0]}", layer=layer)
+    if any((len(x) - len(x.lstrip(" "))) > 4 for x in lines if x.startswith(" ")):
+        fail("indentation depth exceeded level 2", layer=layer)
+
+    sent_collapsed_re = re.compile(
+        r"^\[(?P<ts>[^\]]+)\] Sent input -> (?P<target>.+?) \| (?P<task_id>.+?) \| "
+        r"(?P<intent>.+?) \| (?P<body>.+)$"
+    )
+    wait_collapsed_re = re.compile(
+        r"^\[(?P<ts>[^\]]+)\] Finished waiting -> (?P<target>.+?) \| "
+        r"(?P<status>completed|failed|timeout|cancelled) \| (?P<elapsed>\d+)ms \| (?P<result>.+)$"
+    )
+
+    sent_collapsed_idx = -1
+    wait_collapsed_idx = -1
+    sent_collapsed_match = None
+    wait_collapsed_match = None
+    sent_expanded_idx = -1
+    wait_expanded_idx = -1
+
+    for i, line in enumerate(lines):
+        if sent_collapsed_idx < 0:
+            m = sent_collapsed_re.match(line)
+            if m:
+                sent_collapsed_idx = i
+                sent_collapsed_match = m
+                continue
+        if wait_collapsed_idx < 0:
+            m = wait_collapsed_re.match(line)
+            if m:
+                wait_collapsed_idx = i
+                wait_collapsed_match = m
+                continue
+        if sent_expanded_idx < 0 and re.match(r"^\[[^\]]+\] Sent input$", line):
+            sent_expanded_idx = i
+            continue
+        if wait_expanded_idx < 0 and re.match(r"^\[[^\]]+\] Finished waiting$", line):
+            wait_expanded_idx = i
+
+    if sent_collapsed_idx < 0 or sent_collapsed_match is None:
+        fail("missing collapsed 'Sent input' line", layer=layer)
+    if wait_collapsed_idx < 0 or wait_collapsed_match is None:
+        fail("missing collapsed 'Finished waiting' line", layer=layer)
+    if sent_expanded_idx < 0:
+        fail("missing expanded 'Sent input' block", layer=layer)
+    if wait_expanded_idx < 0:
+        fail("missing expanded 'Finished waiting' block", layer=layer)
+
+    if sent_collapsed_idx > sent_expanded_idx:
+        fail("summary-first violated for 'Sent input'", layer=layer)
+    if wait_collapsed_idx > wait_expanded_idx:
+        fail("summary-first violated for 'Finished waiting'", layer=layer)
+
+    sent_collapsed_line = lines[sent_collapsed_idx]
+    wait_collapsed_line = lines[wait_collapsed_idx]
+    if len(sent_collapsed_line) > 100:
+        fail("collapsed 'Sent input' exceeds default width 100", layer=layer)
+    if len(wait_collapsed_line) > 100:
+        fail("collapsed 'Finished waiting' exceeds default width 100", layer=layer)
+
+    sent_fields = _parse_expanded_block(lines, sent_expanded_idx)
+    wait_fields = _parse_expanded_block(lines, wait_expanded_idx)
+    for key in ("target", "task_id", "intent", "topic", "body"):
+        if key not in sent_fields:
+            fail(f"expanded 'Sent input' missing field '{key}'", layer=layer)
+    for key in ("target", "status", "elapsed_ms", "result", "next_action"):
+        if key not in wait_fields:
+            fail(f"expanded 'Finished waiting' missing field '{key}'", layer=layer)
+
+    if sent_collapsed_match.group("target").strip() != sent_fields["target"].strip():
+        fail("target mismatch between collapsed/expanded 'Sent input'", layer=layer)
+    if sent_collapsed_match.group("task_id").strip() != sent_fields["task_id"].strip():
+        fail("task_id mismatch between collapsed/expanded 'Sent input'", layer=layer)
+    if wait_collapsed_match.group("target").strip() != wait_fields["target"].strip():
+        fail("target mismatch between collapsed/expanded 'Finished waiting'", layer=layer)
+    if wait_collapsed_match.group("status").strip() != wait_fields["status"].strip():
+        fail("status mismatch between collapsed/expanded 'Finished waiting'", layer=layer)
+    if wait_collapsed_match.group("elapsed").strip() != wait_fields["elapsed_ms"].strip():
+        fail("elapsed_ms mismatch between collapsed/expanded 'Finished waiting'", layer=layer)
+
+    body_value = sent_fields["body"]
+    body_excerpt = sent_collapsed_match.group("body").strip()
+    if len(body_value) > 140 and not body_excerpt.endswith("..."):
+        fail("long body field must be truncated with ellipsis in collapsed view", layer=layer)
 
 def assert_existence(state: AssertionState) -> None:
     layer = "existence"
@@ -441,7 +495,9 @@ def assert_semantic(state: AssertionState) -> None:
         except (AssertionError, KeyError, json.JSONDecodeError) as exc:
             fail(f"artifact condition failed for '{matched_spec}': {exc}", layer=layer)
 
-    assert_interaction_protocol_contract(state, layer=layer, lower_markers=lower_markers)
+    assert_specialist_user_route(state, layer=layer)
+    if state.fixture == "interaction-protocol-path":
+        assert_interaction_display_contract(state, layer=layer)
 
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
@@ -462,7 +518,10 @@ def assert_semantic(state: AssertionState) -> None:
             "artifacts": ["compact-recovery.json"],
         },
         "interaction-protocol-path": {
-            "markers": ["interaction-preflight-passed", "interaction-routing-persisted"],
+            "markers": [
+                "interaction-display-contract-passed",
+                "interaction-display-semantics-consistent",
+            ],
             "artifacts": ["session.json", "checkpoints.json"],
         },
     }
@@ -495,9 +554,9 @@ def assert_must_not_happen(state: AssertionState) -> None:
         "checkpoint-path": ["checkpoint-skipped-at-required-boundary"],
         "recovery-prep-path": ["finish-without-recovery-prep-state-update"],
         "interaction-protocol-path": [
-            "interaction.preflight.skipped",
-            "interaction.subagent.direct_user_input",
-            "interaction.unstructured_large_relay",
+            "interaction.display.expanded_before_collapsed",
+            "interaction.display.indentation.depth_exceeded",
+            "interaction.display.unbounded_field_value",
         ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]

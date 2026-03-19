@@ -46,6 +46,7 @@ question_batch_index="1"
 question_ids='["q-default-1"]'
 reply_route='{"q-default-1":{"task_id":"T1","owner_role":"implementation"}}'
 last_sync_turn_id="turn-default-001"
+declare -a rendered_event_lines=()
 
 case "$fixture" in
   basic-happy-path)
@@ -280,22 +281,16 @@ case "$fixture" in
     task_owner_1="planner"
     task_owner_2="implementation"
     markers=(
-      "interaction.preflight.started"
-      "interaction.preflight.config_checked"
-      "interaction.preflight.passed"
-      "interaction.boundary.announced"
-      "panel.drafted"
-      "panel.confirmed"
-      "interaction.stage.collected"
-      "interaction.batch.1.sent"
-      "interaction.batch.1.received"
-      "interaction.batch.2.sent"
-      "interaction.batch.2.received"
-      "interaction.routing.applied"
-      "interaction.state.synced"
+      "interaction.display.summary_first"
+      "interaction.display.sent_input.collapsed"
+      "interaction.display.sent_input.expanded"
+      "interaction.display.finished_waiting.collapsed"
+      "interaction.display.finished_waiting.expanded"
+      "interaction.display.indentation.valid"
+      "interaction.display.truncation.applied"
       "checkpoint.recorded"
-      "interaction-preflight-passed"
-      "interaction-routing-persisted"
+      "interaction-display-contract-passed"
+      "interaction-display-semantics-consistent"
     )
     execution_mode="parallel"
     question_stage_id="stage-acceptance-gate"
@@ -336,6 +331,24 @@ case "$fixture" in
       "last_checkpoint_id": "cp-interaction-001",
       "resume_risks": []
     }'
+    rendered_event_lines=(
+      "[2026-03-19T03:24:01Z] Sent input -> impl | T2 | clarify gate | Validate release gate..."
+      "[2026-03-19T03:24:01Z] Sent input"
+      "  target: impl"
+      "  task_id: T2"
+      "  intent: clarify acceptance"
+      "  topic: release gate"
+      "  body: User asks for release gate validation with dependency checks and staged rollout notes; include risk handling for integration stability and edge-case sign-off before verification."
+      "    body_source: lead_relay"
+      "[2026-03-19T03:24:08Z] Finished waiting -> impl | completed | 1732ms | Gate accepted..."
+      "[2026-03-19T03:24:08Z] Finished waiting"
+      "  target: impl"
+      "  status: completed"
+      "  elapsed_ms: 1732"
+      "  result: Accepted release gate; one rollback risk kept for verification handoff."
+      "  next_action: relay"
+      "    next_owner: verification"
+    )
     ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
@@ -426,6 +439,12 @@ for marker in "${markers[@]}"; do
   printf '[marker] %s\n' "$marker" >>"$session_dir/phase-markers.log"
   printf 'marker:%s\n' "$marker" >>"$session_dir/session.log"
 done
+
+if (( ${#rendered_event_lines[@]} > 0 )); then
+  for line in "${rendered_event_lines[@]}"; do
+    printf '%s\n' "$line" >>"$session_dir/session.log"
+  done
+fi
 
 printf 'run_dir=%s\n' "$run_dir" >>"$session_dir/session.log"
 printf '%s\n' "$run_dir"
