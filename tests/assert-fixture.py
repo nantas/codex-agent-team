@@ -17,6 +17,7 @@ SUPPORTED_FIXTURES = {
     "role-override-path",
     "checkpoint-path",
     "recovery-prep-path",
+    "interaction-protocol-path",
 }
 
 REQUIRED_README_SECTIONS = [
@@ -249,6 +250,92 @@ def validate_artifact_condition(path: Path, condition: str | None) -> None:
     raise AssertionError(f"unsupported artifact condition '{condition}'")
 
 
+def assert_interaction_protocol_contract(
+    state: AssertionState, *, layer: str, lower_markers: set[str]
+) -> None:
+    if "interaction.preflight.passed" not in lower_markers:
+        fail("missing required preflight marker 'interaction.preflight.passed'", layer=layer)
+
+    session_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/session.json"
+    )
+    if session_path is None:
+        fail("missing session artifact '.codex/multi-agent/session.json'", layer=layer)
+    session_payload = json.loads(session_path.read_text(encoding="utf-8"))
+
+    required_keys = [
+        "execution_mode",
+        "awaiting_user_reply",
+        "awaiting_mode",
+        "question_stage_id",
+        "question_batch_index",
+        "question_ids",
+        "reply_route",
+        "last_sync_turn_id",
+    ]
+    for key in required_keys:
+        if key not in session_payload:
+            fail(f"session.json missing interaction key '{key}'", layer=layer)
+
+    execution_mode = session_payload["execution_mode"]
+    if execution_mode not in ("parallel", "serial"):
+        fail("session.json execution_mode must be 'parallel' or 'serial'", layer=layer)
+
+    if not isinstance(session_payload["awaiting_user_reply"], bool):
+        fail("session.json awaiting_user_reply must be boolean", layer=layer)
+
+    if session_payload["awaiting_mode"] not in ("interactive_ask", "message_ask"):
+        fail("session.json awaiting_mode must be 'interactive_ask' or 'message_ask'", layer=layer)
+
+    if not isinstance(session_payload["question_stage_id"], str) or not session_payload[
+        "question_stage_id"
+    ]:
+        fail("session.json question_stage_id must be non-empty string", layer=layer)
+
+    if not isinstance(session_payload["question_batch_index"], int) or session_payload[
+        "question_batch_index"
+    ] < 1:
+        fail("session.json question_batch_index must be integer >= 1", layer=layer)
+
+    question_ids = session_payload["question_ids"]
+    if not isinstance(question_ids, list) or not question_ids:
+        fail("session.json question_ids must be non-empty list", layer=layer)
+    if not all(isinstance(x, str) and x for x in question_ids):
+        fail("session.json question_ids must contain non-empty string ids", layer=layer)
+
+    reply_route = session_payload["reply_route"]
+    if not isinstance(reply_route, dict) or not reply_route:
+        fail("session.json reply_route must be non-empty object", layer=layer)
+
+    if execution_mode == "parallel" and len(reply_route) < len(question_ids):
+        fail(
+            "parallel execution requires reply_route coverage for the active question ids",
+            layer=layer,
+        )
+
+    if not isinstance(session_payload["last_sync_turn_id"], str) or not session_payload[
+        "last_sync_turn_id"
+    ]:
+        fail("session.json last_sync_turn_id must be non-empty string", layer=layer)
+
+    team_path, _, _ = artifact_matches(state.run_dir, state.filesystem_files, ".codex/multi-agent/team.json")
+    if team_path is None:
+        fail("missing team artifact '.codex/multi-agent/team.json'", layer=layer)
+    team_payload = json.loads(team_path.read_text(encoding="utf-8"))
+    charter = team_payload.get("charter")
+    if not isinstance(charter, list) or not charter:
+        fail("team.json charter must be a non-empty list", layer=layer)
+    for entry in charter:
+        if not isinstance(entry, dict):
+            continue
+        role_id = entry.get("role_id")
+        if role_id and role_id != "lead":
+            if entry.get("user_interaction_route") != "via_lead":
+                fail(
+                    f"team.json role '{role_id}' must use user_interaction_route='via_lead'",
+                    layer=layer,
+                )
+
 def assert_existence(state: AssertionState) -> None:
     layer = "existence"
     if state.fixture not in SUPPORTED_FIXTURES:
@@ -354,6 +441,8 @@ def assert_semantic(state: AssertionState) -> None:
         except (AssertionError, KeyError, json.JSONDecodeError) as exc:
             fail(f"artifact condition failed for '{matched_spec}': {exc}", layer=layer)
 
+    assert_interaction_protocol_contract(state, layer=layer, lower_markers=lower_markers)
+
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
         "basic-happy-path": {
@@ -371,6 +460,10 @@ def assert_semantic(state: AssertionState) -> None:
         "recovery-prep-path": {
             "markers": ["recovery-prep-refreshed"],
             "artifacts": ["compact-recovery.json"],
+        },
+        "interaction-protocol-path": {
+            "markers": ["interaction-preflight-passed", "interaction-routing-persisted"],
+            "artifacts": ["session.json", "checkpoints.json"],
         },
     }
     rule = fixture_rules[state.fixture]
@@ -401,6 +494,11 @@ def assert_must_not_happen(state: AssertionState) -> None:
         "role-override-path": ["silently-fallback-to-default-roles-after-override"],
         "checkpoint-path": ["checkpoint-skipped-at-required-boundary"],
         "recovery-prep-path": ["finish-without-recovery-prep-state-update"],
+        "interaction-protocol-path": [
+            "interaction.preflight.skipped",
+            "interaction.subagent.direct_user_input",
+            "interaction.unstructured_large_relay",
+        ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]
 

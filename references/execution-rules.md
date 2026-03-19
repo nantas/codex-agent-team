@@ -6,6 +6,15 @@ Define live orchestration discipline for the lead coordinator and specialists so
 
 ## Live Orchestration Discipline
 
+### User interaction discipline (all modes)
+
+- Lead must be in `Default` mode with lead-side `request_user_input` available before execution begins.
+- Clarification questions must be grouped by decision stage and use structured question ids.
+- Stage-level question cap is `5`; per-call cap is `3`; split `4/5` as `3+2`.
+- In `parallel`, subagents cannot collect user input directly and must route via lead relay.
+- In `serial`, lead collects user answers directly and applies them to lead-owned tasks.
+- Every clarification batch must be persisted in shared state before continuing work.
+
 ### When the lead may spawn specialists
 
 Lead may spawn a specialist only when:
@@ -14,6 +23,7 @@ Lead may spawn a specialist only when:
 - role charter is written in `team.json`;
 - at least one active task in `tasks.json` is assigned to the role;
 - state write permissions are explicit.
+- interaction preflight in `references/parallel-user-interaction.md` has passed.
 
 ### When the lead must wait
 

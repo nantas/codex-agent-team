@@ -2,6 +2,12 @@
 
 `codex-agent-team` is a Codex-oriented multi-agent workflow skill. It helps a lead agent draft a task panel, externalize shared state under `.codex/multi-agent/`, coordinate specialist sub-agents, and keep checkpoint/recovery state fresh.
 
+Current interaction baseline:
+
+- unified user interaction protocol for both `parallel` and `serial` execution
+- lead-owned `request_user_input` collection with structured routing
+- no direct user-to-subagent interaction in `parallel`
+
 ## Install For Agents
 
 Clone alone is not enough. Run the installer so the skill is copied into your local Codex skill directory.

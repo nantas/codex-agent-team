@@ -59,6 +59,16 @@ Use these as RED baselines, then compare against the checklist in `validation/ma
 - Replacement worker duplicates investigation already done.
 - Lead cannot determine safe resume point for the interrupted task.
 
+## Scenario BS-06: User interaction channel drift
+
+**Pressure case**
+- Clarifications are asked through mixed channels (direct subagent chat, oversized relay summaries, unbatched ad-hoc prompts).
+
+**Observable bad outcome**
+- User must answer unrelated questions in one large message.
+- Clarification routing is ambiguous and workers receive extra irrelevant context.
+- Interaction state cannot be reconstructed from shared state fields.
+
 ## Pass/Fail Signal for Baseline Runs
 
 For baseline RED validation, each scenario is considered reproduced if at least one listed observable outcome appears.

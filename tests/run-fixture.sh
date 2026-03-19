@@ -38,6 +38,15 @@ cat >"$run_dir/run-metadata.json" <<EOF
 }
 EOF
 
+execution_mode="parallel"
+awaiting_user_reply="false"
+awaiting_mode="interactive_ask"
+question_stage_id="stage-default"
+question_batch_index="1"
+question_ids='["q-default-1"]'
+reply_route='{"q-default-1":{"task_id":"T1","owner_role":"implementation"}}'
+last_sync_turn_id="turn-default-001"
+
 case "$fixture" in
   basic-happy-path)
     panel_roles='["lead", "implementation", "verification"]'
@@ -45,8 +54,17 @@ case "$fixture" in
     task_owner_1="implementation"
     task_owner_2="verification"
     markers=(
+      "interaction.preflight.started"
+      "interaction.preflight.config_checked"
+      "interaction.preflight.passed"
+      "interaction.boundary.announced"
       "panel.drafted"
       "panel.confirmed"
+      "interaction.stage.collected"
+      "interaction.batch.1.sent"
+      "interaction.batch.1.received"
+      "interaction.routing.applied"
+      "interaction-state-persisted"
       "execution.orchestration_started"
       "team.formed"
       "tasks.assigned"
@@ -55,6 +73,10 @@ case "$fixture" in
       "panel-confirmed"
       "team-formed"
     )
+    question_stage_id="stage-panel-confirmation"
+    question_ids='["q-panel-confirm-goal"]'
+    reply_route='{"q-panel-confirm-goal":{"task_id":"T1","owner_role":"implementation"}}'
+    last_sync_turn_id="turn-basic-001"
     reports_lines=(
       '{"task_id":"T1","role_id":"implementation","status":"in_progress","summary":"Implemented baseline workflow artifacts."}'
       '{"task_id":"T2","role_id":"verification","status":"pending","summary":"Verification queued after implementation handoff."}'
@@ -87,8 +109,17 @@ case "$fixture" in
     task_owner_1="planner"
     task_owner_2="implementer"
     markers=(
+      "interaction.preflight.started"
+      "interaction.preflight.config_checked"
+      "interaction.preflight.passed"
+      "interaction.boundary.announced"
       "panel.drafted"
       "panel.confirmed"
+      "interaction.stage.collected"
+      "interaction.batch.1.sent"
+      "interaction.batch.1.received"
+      "interaction.routing.applied"
+      "interaction-state-persisted"
       "panel.override_roles_received"
       "panel.override_roles_applied"
       "team.formed"
@@ -97,6 +128,10 @@ case "$fixture" in
       "role-override-confirmed"
       "role-override-applied"
     )
+    question_stage_id="stage-role-override"
+    question_ids='["q-role-set"]'
+    reply_route='{"q-role-set":{"task_id":"T1","owner_role":"planner"}}'
+    last_sync_turn_id="turn-override-001"
     reports_lines=(
       '{"task_id":"T1","role_id":"planner","status":"done","summary":"Planned work using override roles."}'
       '{"task_id":"T2","role_id":"implementer","status":"in_progress","summary":"Implementation assigned to override role."}'
@@ -129,7 +164,16 @@ case "$fixture" in
     task_owner_1="implementation"
     task_owner_2="integration"
     markers=(
+      "interaction.preflight.started"
+      "interaction.preflight.config_checked"
+      "interaction.preflight.passed"
+      "interaction.boundary.announced"
       "panel.confirmed"
+      "interaction.stage.collected"
+      "interaction.batch.1.sent"
+      "interaction.batch.1.received"
+      "interaction.routing.applied"
+      "interaction-state-persisted"
       "team.formed"
       "tasks.assigned"
       "checkpoint.after_panel_confirmation"
@@ -139,6 +183,10 @@ case "$fixture" in
       "checkpoint-triggered"
       "checkpoint-persisted"
     )
+    question_stage_id="stage-integration-gate"
+    question_ids='["q-integration-readiness"]'
+    reply_route='{"q-integration-readiness":{"task_id":"T2","owner_role":"integration"}}'
+    last_sync_turn_id="turn-checkpoint-001"
     reports_lines=(
       '{"task_id":"T1","role_id":"implementation","status":"done","summary":"Implementation complete before integration boundary."}'
       '{"task_id":"T2","role_id":"integration","status":"in_progress","summary":"Integration started after checkpoint."}'
@@ -177,7 +225,16 @@ case "$fixture" in
     task_owner_1="implementation"
     task_owner_2="verification"
     markers=(
+      "interaction.preflight.started"
+      "interaction.preflight.config_checked"
+      "interaction.preflight.passed"
+      "interaction.boundary.announced"
       "panel.confirmed"
+      "interaction.stage.collected"
+      "interaction.batch.1.sent"
+      "interaction.batch.1.received"
+      "interaction.routing.applied"
+      "interaction-state-persisted"
       "team.formed"
       "tasks.assigned"
       "checkpoint.recorded"
@@ -186,6 +243,11 @@ case "$fixture" in
       "recovery.resume_point_declared"
       "recovery-prep-refreshed"
     )
+    execution_mode="serial"
+    question_stage_id="stage-recovery-safety-check"
+    question_ids='["q-recovery-safe-resume"]'
+    reply_route='{"q-recovery-safe-resume":{"task_id":"T3","owner_role":"lead"}}'
+    last_sync_turn_id="turn-recovery-001"
     reports_lines=(
       '{"task_id":"T1","role_id":"implementation","status":"done","summary":"Prepared state for compact-safe handoff."}'
       '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Reviewing recovery readiness."}'
@@ -212,6 +274,69 @@ case "$fixture" in
       "resume_risks": ["compact could interrupt final review"]
     }'
     ;;
+  interaction-protocol-path)
+    panel_roles='["lead", "planner", "implementation", "verification"]'
+    team_roles='["lead", "planner", "implementation", "verification"]'
+    task_owner_1="planner"
+    task_owner_2="implementation"
+    markers=(
+      "interaction.preflight.started"
+      "interaction.preflight.config_checked"
+      "interaction.preflight.passed"
+      "interaction.boundary.announced"
+      "panel.drafted"
+      "panel.confirmed"
+      "interaction.stage.collected"
+      "interaction.batch.1.sent"
+      "interaction.batch.1.received"
+      "interaction.batch.2.sent"
+      "interaction.batch.2.received"
+      "interaction.routing.applied"
+      "interaction.state.synced"
+      "checkpoint.recorded"
+      "interaction-preflight-passed"
+      "interaction-routing-persisted"
+    )
+    execution_mode="parallel"
+    question_stage_id="stage-acceptance-gate"
+    question_batch_index="2"
+    question_ids='["q-acceptance-risk-threshold","q-acceptance-release-gate"]'
+    reply_route='{
+      "q-acceptance-goal":{"task_id":"T1","owner_role":"planner"},
+      "q-acceptance-non-goal":{"task_id":"T1","owner_role":"planner"},
+      "q-acceptance-owner":{"task_id":"T2","owner_role":"implementation"},
+      "q-acceptance-risk-threshold":{"task_id":"T2","owner_role":"implementation"},
+      "q-acceptance-release-gate":{"task_id":"T2","owner_role":"verification"}
+    }'
+    last_sync_turn_id="turn-interaction-002"
+    reports_lines=(
+      '{"task_id":"T1","role_id":"planner","status":"done","summary":"Collected stage-level questions and produced structured ids."}'
+      '{"task_id":"T2","role_id":"implementation","status":"in_progress","summary":"Applied routed answer slices without large relay narrative."}'
+      '{"task_id":"T3","role_id":"verification","status":"pending","summary":"Waiting for acceptance gate after routed replies."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"planner","to_role":"implementation","task_id":"T1","summary":"Answer ids mapped to implementation-owned decisions."}'
+      '{"from_role":"lead","to_role":"verification","task_id":"T2","summary":"Release-gate answer routed to verification only."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-interaction-001",
+        "phase": "after_interaction_stage",
+        "decisions": ["preflight passed", "5 question stage batched as 3+2", "reply routing persisted"],
+        "next_step": "continue implementation with routed answers"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-interaction-protocol-path",
+      "approved_goal": "Validate unified interaction protocol and preflight checks",
+      "active_acceptance_criteria": ["lead-only user interaction", "batched request_user_input", "structured routing persisted"],
+      "current_phase": "interaction_routing_applied",
+      "open_blockers": [],
+      "next_actions": [{"owner":"implementation","task_id":"T2","action":"execute with routed answers from interaction stage"}],
+      "last_checkpoint_id": "cp-interaction-001",
+      "resume_risks": []
+    }'
+    ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
     exit 1
@@ -223,7 +348,15 @@ cat >"$state_dir/session.json" <<EOF
   "session_id": "sess-$fixture",
   "fixture": "$fixture",
   "mode": "with-codex-agent-team",
-  "current_phase": "in_progress"
+  "current_phase": "in_progress",
+  "execution_mode": "$execution_mode",
+  "awaiting_user_reply": $awaiting_user_reply,
+  "awaiting_mode": "$awaiting_mode",
+  "question_stage_id": "$question_stage_id",
+  "question_batch_index": $question_batch_index,
+  "question_ids": $question_ids,
+  "reply_route": $reply_route,
+  "last_sync_turn_id": "$last_sync_turn_id"
 }
 EOF
 
@@ -249,9 +382,9 @@ cat >"$state_dir/team.json" <<EOF
 {
   "roles": $team_roles,
   "charter": [
-    {"role_id":"lead","responsibility":"coordinate workflow"},
-    {"role_id":"$task_owner_1","responsibility":"own first task wave"},
-    {"role_id":"$task_owner_2","responsibility":"own review/integration follow-up"}
+    {"role_id":"lead","responsibility":"coordinate workflow","user_interaction_route":"direct"},
+    {"role_id":"$task_owner_1","responsibility":"own first task wave","user_interaction_route":"via_lead"},
+    {"role_id":"$task_owner_2","responsibility":"own review/integration follow-up","user_interaction_route":"via_lead"}
   ]
 }
 EOF

@@ -6,6 +6,10 @@ Codex collaboration messages do not reliably expose sender semantics as structur
 Therefore each message body must carry explicit source and intent fields.
 This keeps coordination auditable, reduces context drift, and ensures decisions are written back to `shared state`.
 
+User-facing clarification and confirmation are governed by:
+
+- `references/parallel-user-interaction.md` (despite filename, applies to both `parallel` and `serial`)
+
 ## Allowed Message Types
 
 Use only:
@@ -18,6 +22,11 @@ Use only:
 - `handoff`
 
 If a communication need does not fit these types, escalate to the lead and log the decision.
+
+Note:
+
+- These message types are for agent-to-agent coordination.
+- User-facing questions should use lead-side `request_user_input` per the interaction protocol.
 
 ## Required Fields
 
@@ -101,3 +110,4 @@ Rules:
 - Do not renegotiate `approved_contract` through peer channels.
 - Any peer decision affecting scope, acceptance criteria, or sequencing must be escalated to lead.
 - Summarize material peer outcomes into `shared state` (`reports.jsonl` or `handoffs.jsonl`) before closing the thread.
+- In `parallel`, subagents must not request direct user replies; route through lead relay only.

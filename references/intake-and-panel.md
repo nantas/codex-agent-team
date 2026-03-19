@@ -44,6 +44,12 @@ Rules:
 
 - Present concise draft understanding and defaults first.
 - Ask for correction only on fields in `needs_confirmation`.
+- Use lead-side `request_user_input` for structured confirmation when available.
+- Keep one decision stage per confirmation batch; do not mix unrelated domains.
+- Apply interaction batching policy from `references/parallel-user-interaction.md`:
+  - max `5` questions per stage
+  - max `3` questions per call
+  - split `4/5` as `3+2`
 - If user replies with simple approval, promote `recommended_defaults` into `approved_contract`.
 - If user edits scope or acceptance criteria, rewrite `approved_contract` and mark a `checkpoint` before orchestration.
 - Do not spawn specialists until `approved_contract` is present and non-empty.

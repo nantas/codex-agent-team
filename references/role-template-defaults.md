@@ -13,6 +13,7 @@ Each template includes:
 - `owned_scope`
 - `non_goals`
 - `allowed_peer_queries`
+- `user_interaction_route`
 - `expected_outputs`
 - `escalation_triggers`
 - `state_write_permissions`
@@ -24,6 +25,7 @@ Each template includes:
 - `owned_scope`: implementation tasks and local refactors inside assigned boundaries.
 - `non_goals`: acceptance redefinition, cross-team coordination policy changes.
 - `allowed_peer_queries`: integration interface checks, verification criteria clarifications.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: code changes, implementation notes, report entries.
 - `escalation_triggers`: ambiguous requirements, hidden dependency conflicts, unsafe migration risk.
 - `state_write_permissions`: assigned task status fields and `reports.jsonl` append.
@@ -35,6 +37,7 @@ Each template includes:
 - `owned_scope`: interfaces, wiring, merge-safe integration tasks.
 - `non_goals`: deep feature rewrites owned by implementation role.
 - `allowed_peer_queries`: dependency contracts, integration readiness, handoff completeness.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: integration patch set, interface confirmation, integration report.
 - `escalation_triggers`: incompatible assumptions, repeated integration breakage.
 - `state_write_permissions`: integration task status fields, `reports.jsonl` and `handoffs.jsonl` append.
@@ -46,6 +49,7 @@ Each template includes:
 - `owned_scope`: test execution, regression checks, acceptance verification.
 - `non_goals`: changing feature scope to satisfy failing checks.
 - `allowed_peer_queries`: expected behavior clarifications, environment assumptions.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: verification report with evidence and unresolved risks.
 - `escalation_triggers`: acceptance ambiguity, nondeterministic failures, environment mismatch.
 - `state_write_permissions`: verification task status fields and `reports.jsonl` append.
@@ -57,6 +61,7 @@ Each template includes:
 - `owned_scope`: repro steps, triggering conditions, minimal failing scenario.
 - `non_goals`: root-cause claims before stable reproduction is proven.
 - `allowed_peer_queries`: environment details, observed symptom confirmations.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: repro script/steps, failure signature, confidence notes.
 - `escalation_triggers`: issue cannot be reproduced after bounded attempts.
 - `state_write_permissions`: reproduction task status fields and `reports.jsonl` append.
@@ -68,6 +73,7 @@ Each template includes:
 - `owned_scope`: causality analysis, failure chain mapping, fix strategy proposal.
 - `non_goals`: shipping final fix without lead approval.
 - `allowed_peer_queries`: reproduction consistency, implementation constraints.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: root-cause report, candidate fix options, risk analysis.
 - `escalation_triggers`: multiple plausible root causes without decisive evidence.
 - `state_write_permissions`: root-cause task status fields and `reports.jsonl` append.
@@ -79,6 +85,7 @@ Each template includes:
 - `owned_scope`: source collection, option framing, tradeoff documentation.
 - `non_goals`: making final product decisions without synthesis or lead review.
 - `allowed_peer_queries`: question refinement, assumption checks, evidence gap requests.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: research dossier, option comparison, confidence levels.
 - `escalation_triggers`: conflicting evidence with major decision impact.
 - `state_write_permissions`: research task status fields and `reports.jsonl` append.
@@ -90,6 +97,7 @@ Each template includes:
 - `owned_scope`: cross-source synthesis, recommendation drafting, rationale clarity.
 - `non_goals`: collecting new broad research unless explicitly assigned.
 - `allowed_peer_queries`: evidence confidence checks, unresolved dependency questions.
+- `user_interaction_route`: `via_lead`.
 - `expected_outputs`: synthesis memo, decision options, explicit recommendation.
 - `escalation_triggers`: unresolved contradictions that block recommendation quality.
 - `state_write_permissions`: synthesis task status fields and `reports.jsonl`/`handoffs.jsonl` append.

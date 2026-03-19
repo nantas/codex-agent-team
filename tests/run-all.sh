@@ -6,6 +6,7 @@ fixtures=(
   "role-override-path"
   "checkpoint-path"
   "recovery-prep-path"
+  "interaction-protocol-path"
 )
 
 pass_count=0

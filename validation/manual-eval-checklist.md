@@ -60,6 +60,16 @@ Fail signal:
 Fail signal:
 - Interrupted sub-agent leaves no recoverable structured summary.
 
+### C6. Unified user interaction protocol (parallel + serial)
+
+- [ ] Lead-side `request_user_input` capability was confirmed before execution.
+- [ ] Clarification batching followed policy (stage max `5`, call max `3`, split `3+2` when needed).
+- [ ] In parallel mode, user did not interact with subagents directly; lead relay handled routing.
+- [ ] Answer routing was structured by `question_id` and persisted to shared state.
+
+Fail signal:
+- Direct user<->subagent interaction occurred, or clarification routing used large unstructured relay text.
+
 ## Evaluation Result
 
 - Overall status: `PASS` or `FAIL`

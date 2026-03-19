@@ -24,9 +24,10 @@ Read only the next file needed for the current phase:
 2. `references/shared-state-model.md`
 3. `references/team-formation.md`
 4. `references/role-template-defaults.md`
-5. `references/communication-protocol.md`
-6. `references/checkpoints-and-recovery.md`
-7. `references/execution-rules.md`
+5. `references/parallel-user-interaction.md` (applies to both `parallel` and `serial`)
+6. `references/communication-protocol.md`
+7. `references/checkpoints-and-recovery.md`
+8. `references/execution-rules.md`
 
 ## Workflow
 

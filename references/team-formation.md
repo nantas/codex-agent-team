@@ -50,6 +50,7 @@ Every specialist role must include all fields below. If one is missing, the role
 - `owned_scope`: explicit ownership boundary (files, subsystem, or question space).
 - `non_goals`: out-of-scope items the role must not touch.
 - `allowed_peer_queries`: what this role may ask other specialists.
+- `user_interaction_route`: must be `via_lead` for specialist roles.
 - `expected_outputs`: concrete artifacts or decisions expected.
 - `escalation_triggers`: conditions that require lead intervention.
 - `state_write_permissions`: exact writable surfaces under `.codex/multi-agent/`.
@@ -61,6 +62,7 @@ Every specialist role must include all fields below. If one is missing, the role
   - update fields in their own assigned task records (if allowed by lead policy).
   - append execution evidence to append-only streams (`reports.jsonl`, `handoffs.jsonl`, `last-breaths.jsonl`).
 - Specialists must not rewrite the approved contract or acceptance criteria.
+- Specialists must not collect user input directly; user interaction is lead-owned.
 
 ## Spawn Rules
 

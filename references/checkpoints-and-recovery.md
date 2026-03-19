@@ -33,8 +33,9 @@ Each checkpoint must perform all actions:
 1. Settle current facts: what is done, in progress, blocked, and deferred.
 2. Refresh shared snapshots: update `tasks.json`, `team.json` (if changed), and `checkpoints.json`.
 3. Capture critical decisions: record accepted/rejected options and rationale in the checkpoint entry.
-4. Refresh compact state: overwrite `compact-recovery.json` with minimal fresh resume payload.
-5. Declare next safe resume point: define the immediate next step and owner.
+4. Refresh interaction state: persist whether user reply is pending and which question batch is active.
+5. Refresh compact state: overwrite `compact-recovery.json` with minimal fresh resume payload.
+6. Declare next safe resume point: define the immediate next step and owner.
 
 If any step is skipped, checkpoint is incomplete and compact should not proceed.
 
