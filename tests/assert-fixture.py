@@ -18,6 +18,8 @@ SUPPORTED_FIXTURES = {
     "checkpoint-path",
     "recovery-prep-path",
     "interaction-protocol-path",
+    "resource-safety-path",
+    "emfile-downgrade-path",
 }
 
 REQUIRED_README_SECTIONS = [
@@ -272,6 +274,83 @@ def assert_specialist_user_route(state: AssertionState, *, layer: str) -> None:
                 )
 
 
+def assert_compact_recovery_schema(state: AssertionState, *, layer: str) -> None:
+    compact_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/compact-recovery.json"
+    )
+    if compact_path is None:
+        fail("missing compact recovery artifact '.codex/multi-agent/compact-recovery.json'", layer=layer)
+    payload = json.loads(compact_path.read_text(encoding="utf-8"))
+    if "suspendedAgents" not in payload:
+        fail("compact-recovery.json missing required key 'suspendedAgents'", layer=layer)
+    if not isinstance(payload.get("suspendedAgents"), list):
+        fail("compact-recovery.json key 'suspendedAgents' must be a list", layer=layer)
+
+
+def assert_resource_safety_contract(state: AssertionState, *, layer: str) -> None:
+    compact_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/compact-recovery.json"
+    )
+    if compact_path is None:
+        fail("missing compact recovery artifact '.codex/multi-agent/compact-recovery.json'", layer=layer)
+    payload = json.loads(compact_path.read_text(encoding="utf-8"))
+    entries = payload.get("suspendedAgents")
+    if not isinstance(entries, list) or not entries:
+        fail("resource-safety-path requires non-empty suspendedAgents", layer=layer)
+
+    required = {
+        "agent_id",
+        "role_id",
+        "task_id",
+        "status",
+        "suspend_reason",
+        "handoff_checkpoint_id",
+        "resume_input",
+    }
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            fail(f"suspendedAgents[{i}] must be an object", layer=layer)
+        missing = sorted(required - set(entry.keys()))
+        if missing:
+            fail(f"suspendedAgents[{i}] missing required keys: {missing}", layer=layer)
+
+    sorted_entries = sorted(
+        entries, key=lambda item: (item["handoff_checkpoint_id"], item["agent_id"])
+    )
+    if entries != sorted_entries:
+        fail(
+            "suspendedAgents must be in deterministic order by handoff_checkpoint_id then agent_id",
+            layer=layer,
+        )
+
+
+def assert_emfile_downgrade_contract(state: AssertionState, *, layer: str) -> None:
+    session_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/session.json"
+    )
+    if session_path is None:
+        fail("missing session artifact '.codex/multi-agent/session.json'", layer=layer)
+    payload = json.loads(session_path.read_text(encoding="utf-8"))
+    if payload.get("execution_mode") != "serial":
+        fail("EMFILE downgrade fixture requires session.execution_mode='serial'", layer=layer)
+
+    fd_downgrade = payload.get("fd_downgrade")
+    if not isinstance(fd_downgrade, dict):
+        fail("session.json missing required object 'fd_downgrade'", layer=layer)
+    if fd_downgrade.get("active") is not True:
+        fail("fd_downgrade.active must be true while EMFILE guardrail is active", layer=layer)
+    trigger = str(fd_downgrade.get("trigger", "")).lower()
+    if trigger not in {"emfile", "too many open files", "os error 24"}:
+        fail(
+            "fd_downgrade.trigger must be one of: EMFILE / Too many open files / os error 24",
+            layer=layer,
+        )
+    if fd_downgrade.get("pause_spawn_waves") is not True:
+        fail("fd_downgrade.pause_spawn_waves must be true during downgrade", layer=layer)
+    if fd_downgrade.get("mode_before") != "parallel" or fd_downgrade.get("mode_after") != "serial":
+        fail("fd_downgrade mode transition must be parallel -> serial", layer=layer)
+
+
 def _collect_indentation_violations(lines: Sequence[str]) -> List[str]:
     violations: List[str] = []
     for raw in lines:
@@ -496,8 +575,13 @@ def assert_semantic(state: AssertionState) -> None:
             fail(f"artifact condition failed for '{matched_spec}': {exc}", layer=layer)
 
     assert_specialist_user_route(state, layer=layer)
+    assert_compact_recovery_schema(state, layer=layer)
     if state.fixture == "interaction-protocol-path":
         assert_interaction_display_contract(state, layer=layer)
+    if state.fixture == "resource-safety-path":
+        assert_resource_safety_contract(state, layer=layer)
+    if state.fixture == "emfile-downgrade-path":
+        assert_emfile_downgrade_contract(state, layer=layer)
 
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
@@ -523,6 +607,20 @@ def assert_semantic(state: AssertionState) -> None:
                 "interaction-display-semantics-consistent",
             ],
             "artifacts": ["session.json", "checkpoints.json"],
+        },
+        "resource-safety-path": {
+            "markers": [
+                "resource-close-cleanup-confirmed",
+                "resource-resume-sequenced",
+            ],
+            "artifacts": ["compact-recovery.json", "session.json", "checkpoints.json"],
+        },
+        "emfile-downgrade-path": {
+            "markers": [
+                "resource-emfile-downgrade-triggered",
+                "resource-emfile-serial-guard-active",
+            ],
+            "artifacts": ["session.json", "checkpoints.json", "compact-recovery.json"],
         },
     }
     rule = fixture_rules[state.fixture]
@@ -557,6 +655,16 @@ def assert_must_not_happen(state: AssertionState) -> None:
             "interaction.display.expanded_before_collapsed",
             "interaction.display.indentation.depth_exceeded",
             "interaction.display.unbounded_field_value",
+        ],
+        "resource-safety-path": [
+            "resource.close_agent.skipped",
+            "resource.resume_without_checkpoint_handoff",
+            "resource.suspended_agents_stale",
+        ],
+        "emfile-downgrade-path": [
+            "resource.emfile_spawn_wave_continued",
+            "resource.emfile_downgrade_undocumented",
+            "resource.emfile_parallel_before_stable",
         ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]

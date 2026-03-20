@@ -8,6 +8,12 @@ Current interaction baseline:
 - lead-owned `request_user_input` collection with structured routing
 - no direct user-to-subagent interaction in `parallel`
 
+Resource safety baseline:
+
+- `close_agent` cleanup is mandatory after specialist handoff/completion.
+- `close_agent` is treated as suspend-capable; context is recoverable via `resume_agent`.
+- FD/resource budgets are required, with `EMFILE` (`Too many open files` / `os error 24`) auto-downgrade to `serial` until stable.
+
 ## Install For Agents
 
 Clone alone is not enough. Run the installer so the skill is copied into `.agents/skills`.

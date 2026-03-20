@@ -70,6 +70,24 @@ Fail signal:
 Fail signal:
 - Direct user<->subagent interaction occurred, or clarification routing used large unstructured relay text.
 
+### C7. Specialist close/resume discipline
+
+- [ ] Completed or suspended specialists were explicitly cleaned up with `close_agent`.
+- [ ] Shared state records include `agent_id` and final status for each decommissioned specialist.
+- [ ] Resume paths use `resume_agent` + scoped `send_input` from checkpoint/handoff evidence instead of speculative re-spawn.
+
+Fail signal:
+- Specialist lifecycle is managed only in chat text, without `close_agent`/resume evidence in state artifacts.
+
+### C8. EMFILE auto-downgrade behavior
+
+- [ ] On `EMFILE` / `Too many open files` / `os error 24`, execution mode downgraded to `serial`.
+- [ ] New spawn waves were paused while FD errors persisted.
+- [ ] Checkpoint evidence captured trigger, downgrade, and stabilization condition before parallel resumed.
+
+Fail signal:
+- Worker spawns continue during active FD exhaustion, or downgrade/recovery is undocumented.
+
 ## Evaluation Result
 
 - Overall status: `PASS` or `FAIL`

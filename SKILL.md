@@ -14,6 +14,8 @@ Use this skill only when the user explicitly invokes a Codex-only multi-agent wo
 - Externalize workflow state under project-local `.codex/multi-agent/`.
 - Treat the approved panel contract as authoritative until the user changes it.
 - Refresh recovery state before any compact and after any recovery-relevant event.
+- Treat `close_agent` as required resource cleanup and suspend-capable lifecycle control; resume suspended specialists with `resume_agent` + `send_input`.
+- Enforce FD/resource budgets; on `EMFILE` (`Too many open files` / `os error 24`) downgrade to `serial` and pause new spawn waves until stable.
 - Keep `SKILL.md` short. Read the sidecar references for execution details instead of expanding the inline workflow here.
 
 ## Navigation

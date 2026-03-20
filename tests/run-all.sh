@@ -7,6 +7,8 @@ fixtures=(
   "checkpoint-path"
   "recovery-prep-path"
   "interaction-protocol-path"
+  "resource-safety-path"
+  "emfile-downgrade-path"
 )
 
 pass_count=0

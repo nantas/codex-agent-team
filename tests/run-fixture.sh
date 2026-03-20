@@ -47,6 +47,8 @@ question_ids='["q-default-1"]'
 reply_route='{"q-default-1":{"task_id":"T1","owner_role":"implementation"}}'
 last_sync_turn_id="turn-default-001"
 declare -a rendered_event_lines=()
+resource_budget='{"max_concurrent_specialists":2,"open_agent_count":1}'
+fd_downgrade='{"active": false, "trigger": null, "pause_spawn_waves": false, "mode_before": "parallel", "mode_after": "parallel", "stabilization_evidence": "not_required"}'
 
 case "$fixture" in
   basic-happy-path)
@@ -101,7 +103,8 @@ case "$fixture" in
       "open_blockers": [],
       "next_actions": [{"owner":"verification","task_id":"T2","action":"review baseline artifacts"}],
       "last_checkpoint_id": "cp-001",
-      "resume_risks": []
+      "resume_risks": [],
+      "suspendedAgents": []
     }'
     ;;
   role-override-path)
@@ -156,7 +159,8 @@ case "$fixture" in
       "open_blockers": [],
       "next_actions": [{"owner":"verifier","task_id":"T3","action":"confirm override role persistence"}],
       "last_checkpoint_id": "cp-override-001",
-      "resume_risks": []
+      "resume_risks": [],
+      "suspendedAgents": []
     }'
     ;;
   checkpoint-path)
@@ -217,7 +221,8 @@ case "$fixture" in
       "open_blockers": [],
       "next_actions": [{"owner":"verification","task_id":"T3","action":"verify checkpoint chain"}],
       "last_checkpoint_id": "cp-checkpoint-002",
-      "resume_risks": []
+      "resume_risks": [],
+      "suspendedAgents": []
     }'
     ;;
   recovery-prep-path)
@@ -272,7 +277,8 @@ case "$fixture" in
       "open_blockers": [],
       "next_actions": [{"owner":"lead","task_id":"T3","action":"resume from compact-recovery.json if interrupted"}],
       "last_checkpoint_id": "cp-recovery-001",
-      "resume_risks": ["compact could interrupt final review"]
+      "resume_risks": ["compact could interrupt final review"],
+      "suspendedAgents": []
     }'
     ;;
   interaction-protocol-path)
@@ -329,7 +335,8 @@ case "$fixture" in
       "open_blockers": [],
       "next_actions": [{"owner":"implementation","task_id":"T2","action":"execute with routed answers from interaction stage"}],
       "last_checkpoint_id": "cp-interaction-001",
-      "resume_risks": []
+      "resume_risks": [],
+      "suspendedAgents": []
     }'
     rendered_event_lines=(
       "[2026-03-19T03:24:01Z] Sent input -> impl | T2 | clarify gate | Validate release gate..."
@@ -350,6 +357,139 @@ case "$fixture" in
       "    next_owner: verification"
     )
     ;;
+  resource-safety-path)
+    panel_roles='["lead", "implementation", "verification"]'
+    team_roles='["lead", "implementation", "verification"]'
+    task_owner_1="implementation"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "team.formed"
+      "tasks.assigned"
+      "checkpoint.recorded"
+      "resource.budget.persisted"
+      "resource.close_agent.cleanup"
+      "recovery.suspended_agents.refreshed"
+      "resource.resume_agent.rehydrated"
+      "resource-close-cleanup-confirmed"
+      "resource-resume-sequenced"
+    )
+    question_stage_id="stage-resource-safety"
+    question_ids='["q-resource-cleanup-ready"]'
+    reply_route='{"q-resource-cleanup-ready":{"task_id":"T1","owner_role":"implementation"}}'
+    last_sync_turn_id="turn-resource-001"
+    resource_budget='{"max_concurrent_specialists":3,"open_agent_count":1}'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"implementation","status":"done","summary":"Produced suspend-ready implementation handoff."}'
+      '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Resumed from checkpointed suspend metadata."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"implementation","to_role":"verification","task_id":"T1","summary":"Checkpointed handoff recorded before close_agent cleanup."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-resource-001",
+        "phase": "after_implementation_handoff",
+        "decisions": ["implementation specialist cleaned up with close_agent"],
+        "next_step": "resume specialist deterministically"
+      },
+      {
+        "checkpoint_id": "cp-resource-002",
+        "phase": "after_resume_handoff",
+        "decisions": ["resume_agent and scoped send_input completed"],
+        "next_step": "continue verification"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-resource-safety-path",
+      "approved_goal": "Validate close and resume lifecycle controls",
+      "active_acceptance_criteria": ["close_agent cleanup required", "resume via checkpointed state"],
+      "current_phase": "resume_in_progress",
+      "open_blockers": [],
+      "next_actions": [{"owner":"verification","task_id":"T2","action":"continue resumed verification task"}],
+      "last_checkpoint_id": "cp-resource-002",
+      "resume_risks": ["stale suspended agents list can cause wrong resume target"],
+      "suspendedAgents": [
+        {
+          "agent_id": "agent-impl-01",
+          "role_id": "implementation",
+          "task_id": "T1",
+          "status": "suspended",
+          "suspend_reason": "handoff_checkpointed_then_closed",
+          "handoff_checkpoint_id": "cp-resource-001",
+          "resume_input": {
+            "task_id": "T1",
+            "owner_role": "implementation",
+            "instruction": "Resume from checkpoint cp-resource-001 and continue scoped implementation follow-up."
+          }
+        },
+        {
+          "agent_id": "agent-ver-01",
+          "role_id": "verification",
+          "task_id": "T2",
+          "status": "suspended",
+          "suspend_reason": "verification_pause_for_gate",
+          "handoff_checkpoint_id": "cp-resource-002",
+          "resume_input": {
+            "task_id": "T2",
+            "owner_role": "verification",
+            "instruction": "Resume from checkpoint cp-resource-002 and finish verification gate review."
+          }
+        }
+      ]
+    }'
+    ;;
+  emfile-downgrade-path)
+    panel_roles='["lead", "implementation", "verification"]'
+    team_roles='["lead", "implementation", "verification"]'
+    task_owner_1="implementation"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "team.formed"
+      "tasks.assigned"
+      "resource.fd_budget.persisted"
+      "resource.fd.emfile_detected"
+      "execution.mode.serial_downgraded"
+      "execution.spawn_waves.paused"
+      "checkpoint.recorded"
+      "resource-emfile-downgrade-triggered"
+      "resource-emfile-serial-guard-active"
+    )
+    execution_mode="serial"
+    question_stage_id="stage-emfile-guardrail"
+    question_ids='["q-emfile-stabilization-window"]'
+    reply_route='{"q-emfile-stabilization-window":{"task_id":"T2","owner_role":"verification"}}'
+    last_sync_turn_id="turn-emfile-001"
+    resource_budget='{"max_concurrent_specialists":4,"open_agent_count":4}'
+    fd_downgrade='{"active": true, "trigger": "EMFILE", "pause_spawn_waves": true, "mode_before": "parallel", "mode_after": "serial", "stabilization_evidence": "fd_errors_cleared_and_open_agent_count_below_budget"}'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"implementation","status":"done","summary":"Detected FD exhaustion and raised downgrade event."}'
+      '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Serial guardrail active while waiting for stabilization evidence."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"implementation","to_role":"verification","task_id":"T1","summary":"EMFILE downgrade triggered; spawn waves paused."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-emfile-001",
+        "phase": "fd_downgrade_triggered",
+        "decisions": ["execution downgraded parallel->serial due to EMFILE"],
+        "next_step": "pause spawn waves and gather stabilization evidence"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-emfile-downgrade-path",
+      "approved_goal": "Validate EMFILE downgrade guardrail",
+      "active_acceptance_criteria": ["serial downgrade on EMFILE", "pause spawn waves until stable"],
+      "current_phase": "serial_guardrail_active",
+      "open_blockers": ["fd_exhaustion_active"],
+      "next_actions": [{"owner":"verification","task_id":"T2","action":"verify stabilization evidence before resuming parallel"}],
+      "last_checkpoint_id": "cp-emfile-001",
+      "resume_risks": ["resuming parallel too early can repeat FD exhaustion"],
+      "suspendedAgents": []
+    }'
+    ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
     exit 1
@@ -363,6 +503,8 @@ cat >"$state_dir/session.json" <<EOF
   "mode": "with-codex-agent-team",
   "current_phase": "in_progress",
   "execution_mode": "$execution_mode",
+  "resource_budget": $resource_budget,
+  "fd_downgrade": $fd_downgrade,
   "awaiting_user_reply": $awaiting_user_reply,
   "awaiting_mode": "$awaiting_mode",
   "question_stage_id": "$question_stage_id",

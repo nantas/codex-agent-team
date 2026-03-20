@@ -82,4 +82,8 @@ Lead should retire a specialist when:
 - blockers are resolved and no new dependent tasks are expected;
 - its role no longer maps to active acceptance criteria.
 
-On retire, require a final handoff or last-breath style summary in append logs.
+On retire, lead must:
+
+- require a final handoff or last-breath style summary in append logs;
+- call `close_agent` for the retiring specialist;
+- record `agent_id`, `role_id`, final status, and close checkpoint reference in shared state.

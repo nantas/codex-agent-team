@@ -35,7 +35,8 @@ Each checkpoint must perform all actions:
 3. Capture critical decisions: record accepted/rejected options and rationale in the checkpoint entry.
 4. Refresh interaction state: persist whether user reply is pending and which question batch is active.
 5. Refresh compact state: overwrite `compact-recovery.json` with minimal fresh resume payload.
-6. Declare next safe resume point: define the immediate next step and owner.
+6. Refresh suspended agent state: persist `suspendedAgents` inventory with resume-critical metadata.
+7. Declare next safe resume point: define the immediate next step and owner.
 
 If any step is skipped, checkpoint is incomplete and compact should not proceed.
 
@@ -66,8 +67,20 @@ Rule: snapshots first, logs second. Do not reconstruct the full timeline unless 
 - `next_actions` (owner + task id + action)
 - `last_checkpoint_id`
 - `resume_risks`
+- `suspendedAgents` (array of `{agent_id, role_id, task_id, status, suspend_reason, handoff_checkpoint_id, resume_input}` entries)
 
 Do not include long narrative history.
+
+## Deterministic Resume Playbook
+
+When resuming suspended specialists, follow this fixed order:
+
+1. Load snapshots in the recovery read order and read `suspendedAgents`.
+2. If FD/resource downgrade is active (`EMFILE` / `Too many open files` / `os error 24`), keep execution in `serial` and do not start new spawn waves.
+3. Iterate suspended entries in deterministic order (`handoff_checkpoint_id`, then `agent_id`).
+4. For each entry: `resume_agent` -> `send_input` using recorded `resume_input` and current checkpoint references.
+5. After each resumed unit reaches a handoff-safe point, checkpoint and run `close_agent` again to return to managed suspended state or completion.
+6. Remove or update the entry in `suspendedAgents` after checkpoint so no stale resume targets remain.
 
 ## Last-Breath Contract
 
