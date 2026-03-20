@@ -35,6 +35,7 @@ Use dot-delimited marker names. Recommended families:
 - `execution.*`
 - `delivery.*`
 - `closure.*`
+- `scope.*`
 
 Markers represent normalized evidence extracted from session logs and/or artifact summaries. They are assertion targets, not required source log strings.
 

@@ -89,6 +89,16 @@ Use these as RED baselines, then compare against the checklist in `validation/ma
 - User cannot clearly tell whether workflow is done or paused.
 - Subsequent resumption may duplicate closure work or skip required finish steps.
 
+## Scenario BS-09: Scope drift not checkpointed into contract and recovery
+
+**Pressure case**
+- User updates scope/constraints mid-run, but lead continues execution without explicit drift capture, contract revision, and post-drift recovery refresh.
+
+**Observable bad outcome**
+- `panel.json` approved contract and active task plan diverge silently.
+- `checkpoints.json` lacks scope-change decision evidence.
+- `compact-recovery.json` resumes against stale scope assumptions.
+
 ## Pass/Fail Signal for Baseline Runs
 
 For baseline RED validation, each scenario is considered reproduced if at least one listed observable outcome appears.

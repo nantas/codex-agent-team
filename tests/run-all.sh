@@ -12,6 +12,7 @@ fixtures=(
   "deliverable-packaging-path"
   "final-closure-control-path"
   "relative-link-integrity-path"
+  "scope-drift-recovery-path"
 )
 
 pass_count=0

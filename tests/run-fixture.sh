@@ -54,6 +54,8 @@ final_notice_sent="false"
 delivery_root="null"
 closed_at="null"
 delivery_contract='{"delivery_root":null,"entry":null,"link_policy":"relative-markdown-links-only"}'
+scope_drift_state="null"
+scope_revision='"rev-001-initial"'
 
 case "$fixture" in
   basic-happy-path)
@@ -664,6 +666,68 @@ case "$fixture" in
       "closure_state": {"phase":"closure_review","gate_passed":true,"final_notice_sent":false,"delivery_entry_path":".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-links/DELIVERABLE_INDEX.md"}
     }'
     ;;
+  scope-drift-recovery-path)
+    panel_roles='["lead", "planner", "implementation", "verification"]'
+    team_roles='["lead", "planner", "implementation", "verification"]'
+    task_owner_1="planner"
+    task_owner_2="implementation"
+    markers=(
+      "panel.confirmed"
+      "scope.drift.detected"
+      "scope.contract.updated"
+      "tasks.replanned"
+      "checkpoint.recorded"
+      "recovery.snapshot_refreshed"
+      "scope-drift-recovery-applied"
+    )
+    question_stage_id="stage-scope-drift-replan"
+    question_ids='["q-scope-drift-approval"]'
+    reply_route='{"q-scope-drift-approval":{"task_id":"T2","owner_role":"implementation"}}'
+    last_sync_turn_id="turn-scope-001"
+    workflow_status="active"
+    scope_revision='"rev-002-drift-applied"'
+    scope_drift_state='{
+      "detected": true,
+      "reason": "user changed scope boundaries after new evidence",
+      "old_scope_digest": "scope-a1",
+      "new_scope_digest": "scope-b2",
+      "applied_revision": "rev-002-drift-applied"
+    }'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"planner","status":"done","summary":"Detected scope drift and proposed updated contract boundary."}'
+      '{"task_id":"T2","role_id":"implementation","status":"in_progress","summary":"Replanned execution tasks after scope revision rev-002-drift-applied."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"planner","to_role":"implementation","task_id":"T1","summary":"Scope revision approved; apply replanned task sequence."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-scope-001",
+        "phase": "scope_drift_detected",
+        "decisions": ["scope drift confirmed from new user constraint"],
+        "scope_drift": {"detected": true, "revision": "rev-002-drift-applied"},
+        "next_step": "rewrite approved contract and replan tasks"
+      },
+      {
+        "checkpoint_id": "cp-scope-002",
+        "phase": "post_scope_replan",
+        "decisions": ["tasks replanned and reassigned after scope change"],
+        "scope_drift": {"detected": true, "revision": "rev-002-drift-applied"},
+        "next_step": "continue execution with replanned scope"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-scope-drift-recovery-path",
+      "approved_goal": "Validate deterministic recovery behavior after scope drift",
+      "active_acceptance_criteria": ["checkpoint after scope change", "replanned tasks reflected in recovery"],
+      "current_phase": "post_scope_replan",
+      "open_blockers": ["follow-up verification pending under revised scope"],
+      "next_actions": [{"owner":"verification","task_id":"T3","action":"validate replanned outputs against revised scope"}],
+      "last_checkpoint_id": "cp-scope-002",
+      "resume_risks": ["if revision mismatches, resumed tasks may use stale scope"],
+      "suspendedAgents": []
+    }'
+    ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
     exit 1
@@ -681,6 +745,7 @@ cat >"$state_dir/session.json" <<EOF
   "final_notice_sent": $final_notice_sent,
   "delivery_root": $delivery_root,
   "closed_at": $closed_at,
+  "scope_drift_state": $scope_drift_state,
   "resource_budget": $resource_budget,
   "fd_downgrade": $fd_downgrade,
   "awaiting_user_reply": $awaiting_user_reply,
@@ -706,6 +771,7 @@ cat >"$state_dir/panel.json" <<EOF
   "approved_contract": {
     "fixture": "$fixture",
     "roles": $panel_roles,
+    "scope_revision": $scope_revision,
     "acceptance_criteria": ["workflow correctness", "dual evidence"],
     "delivery_contract": $delivery_contract
   }

@@ -23,6 +23,7 @@ SUPPORTED_FIXTURES = {
     "deliverable-packaging-path",
     "final-closure-control-path",
     "relative-link-integrity-path",
+    "scope-drift-recovery-path",
 }
 
 REQUIRED_README_SECTIONS = [
@@ -571,6 +572,66 @@ def assert_relative_link_integrity(state: AssertionState, *, layer: str) -> None
         if not resolved.exists():
             fail(f"broken relative link in DELIVERABLE_INDEX.md: {link}", layer=layer)
 
+
+def assert_scope_drift_recovery_contract(state: AssertionState, *, layer: str) -> None:
+    session_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/session.json"
+    )
+    panel_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/panel.json"
+    )
+    checkpoints_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/checkpoints.json"
+    )
+    compact_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/compact-recovery.json"
+    )
+    if session_path is None or panel_path is None or checkpoints_path is None or compact_path is None:
+        fail("missing required scope-drift-recovery artifacts", layer=layer)
+
+    session_payload = json.loads(session_path.read_text(encoding="utf-8"))
+    panel_payload = json.loads(panel_path.read_text(encoding="utf-8"))
+    checkpoints_payload = json.loads(checkpoints_path.read_text(encoding="utf-8"))
+    compact_payload = json.loads(compact_path.read_text(encoding="utf-8"))
+
+    scope_drift_state = session_payload.get("scope_drift_state")
+    if not isinstance(scope_drift_state, dict):
+        fail("session.scope_drift_state must be an object for scope-drift-recovery fixture", layer=layer)
+    if scope_drift_state.get("detected") is not True:
+        fail("session.scope_drift_state.detected must be true", layer=layer)
+
+    approved_contract = panel_payload.get("approved_contract")
+    if not isinstance(approved_contract, dict):
+        fail("panel.approved_contract must be an object", layer=layer)
+    revision = approved_contract.get("scope_revision")
+    if not revision:
+        fail("panel.approved_contract.scope_revision must be non-empty", layer=layer)
+    if scope_drift_state.get("applied_revision") != revision:
+        fail(
+            "session.scope_drift_state.applied_revision must match panel.approved_contract.scope_revision",
+            layer=layer,
+        )
+
+    checkpoints = checkpoints_payload.get("checkpoints")
+    if not isinstance(checkpoints, list) or not checkpoints:
+        fail("checkpoints.json requires non-empty checkpoints array", layer=layer)
+    if not any(
+        isinstance(cp, dict)
+        and isinstance(cp.get("scope_drift"), dict)
+        and cp["scope_drift"].get("detected") is True
+        for cp in checkpoints
+    ):
+        fail("checkpoints.json must record at least one scope_drift.detected=true entry", layer=layer)
+
+    if compact_payload.get("current_phase") != "post_scope_replan":
+        fail("compact-recovery.current_phase must be 'post_scope_replan'", layer=layer)
+    open_blockers = compact_payload.get("open_blockers")
+    if not isinstance(open_blockers, list) or not open_blockers:
+        fail("compact-recovery.open_blockers must be a non-empty list after scope drift", layer=layer)
+    next_actions = compact_payload.get("next_actions")
+    if not isinstance(next_actions, list) or not next_actions:
+        fail("compact-recovery.next_actions must be non-empty after scope drift", layer=layer)
+
 def assert_existence(state: AssertionState) -> None:
     layer = "existence"
     if state.fixture not in SUPPORTED_FIXTURES:
@@ -690,6 +751,8 @@ def assert_semantic(state: AssertionState) -> None:
         assert_final_closure_control(state, layer=layer)
     if state.fixture == "relative-link-integrity-path":
         assert_relative_link_integrity(state, layer=layer)
+    if state.fixture == "scope-drift-recovery-path":
+        assert_scope_drift_recovery_contract(state, layer=layer)
 
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
@@ -751,6 +814,14 @@ def assert_semantic(state: AssertionState) -> None:
             ],
             "artifacts": ["DELIVERABLE_INDEX.md", "delivery-manifest.json"],
         },
+        "scope-drift-recovery-path": {
+            "markers": [
+                "scope.drift.detected",
+                "scope.contract.updated",
+                "scope-drift-recovery-applied",
+            ],
+            "artifacts": ["session.json", "panel.json", "checkpoints.json", "compact-recovery.json"],
+        },
     }
     rule = fixture_rules[state.fixture]
     for marker in rule["markers"]:
@@ -808,6 +879,11 @@ def assert_must_not_happen(state: AssertionState) -> None:
         "relative-link-integrity-path": [
             "delivery.links.absolute_path_detected",
             "delivery.links.broken_reference",
+        ],
+        "scope-drift-recovery-path": [
+            "scope.drift.ignored",
+            "scope.contract.updated_without_checkpoint",
+            "scope.replan.skipped",
         ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]

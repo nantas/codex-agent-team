@@ -108,6 +108,16 @@ Fail signal:
 Fail signal:
 - Workflow stops without explicit completion signaling or without closed-state persistence.
 
+### C11. Scope drift capture and recovery sync (maps to `BS-09`)
+
+- [ ] On scope change, lead explicitly marked drift and revised `panel.json` approved contract revision.
+- [ ] A checkpoint persisted scope-change decisions before continuing execution.
+- [ ] `tasks.json`/assignment evidence reflects post-drift replan, not pre-drift assumptions.
+- [ ] `compact-recovery.json` was refreshed with post-drift phase/blocker/action state.
+
+Fail signal:
+- Scope changed in conversation but contract/recovery state stayed at pre-drift values.
+
 ## Evaluation Result
 
 - Overall status: `PASS` or `FAIL`
