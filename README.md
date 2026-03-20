@@ -10,26 +10,27 @@ Current interaction baseline:
 
 ## Install For Agents
 
-Clone alone is not enough. Run the installer so the skill is copied into your local Codex skill directory.
+Clone alone is not enough. Run the installer so the skill is copied into `.agents/skills`.
 
 First-time install:
 
 ```bash
-git clone <your-fork-or-origin-url> ~/.codex/codex-agent-team
-~/.codex/codex-agent-team/.codex/install-local.sh --repo ~/.codex/codex-agent-team
+git clone <your-fork-or-origin-url> ~/codex-agent-team
+cd ~/codex-agent-team
+./.agents/install-local.sh --scope global
 ```
 
 Already cloned in this checkout:
 
 ```bash
-./.codex/install-local.sh
+./.agents/install-local.sh --scope project
 ```
 
 After install or update, restart Codex so it reloads the local skill catalog.
 
 Detailed scenarios, verify, update, uninstall, and troubleshooting:
 
-- [`.codex/INSTALL.md`](./.codex/INSTALL.md)
+- [`.agents/INSTALL.md`](./.agents/INSTALL.md)
 
 ## What Gets Installed
 
@@ -42,14 +43,18 @@ The installer publishes a self-contained skill package containing:
 Default destination:
 
 ```text
-~/.codex/skills/codex-agent-team
+~/.agents/skills/codex-agent-team
 ```
 
-You can override the destination with `--target-dir` and the installed skill directory name with `--skill-name`.
+Project-scope destination:
+
+```text
+<project-root>/.agents/skills/codex-agent-team
+```
 
 ## Verify
 
 ```bash
-ls ~/.codex/skills/codex-agent-team
-find ~/.codex/skills/codex-agent-team/references -maxdepth 1 -type f | sort
+ls ~/.agents/skills/codex-agent-team
+find ~/.agents/skills/codex-agent-team/references -maxdepth 1 -type f | sort
 ```
