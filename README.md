@@ -58,3 +58,19 @@ Project-scope destination:
 ls ~/.agents/skills/codex-agent-team
 find ~/.agents/skills/codex-agent-team/references -maxdepth 1 -type f | sort
 ```
+
+## Release
+
+Prompt-driven release automation entry:
+
+```bash
+./.agents/release.sh --intent "发布新版本" --bump patch --repo <owner/repo> --dry-run
+```
+
+```bash
+./.agents/release.sh --intent "发布 vX.Y.Z" --repo <owner/repo>
+```
+
+Release details and operator runbook:
+
+- [`docs/release-operations.md`](./docs/release-operations.md)
