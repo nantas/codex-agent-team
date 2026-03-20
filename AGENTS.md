@@ -19,6 +19,10 @@ Primary runtime state surface (in test outputs): `.codex/multi-agent/`.
 - `python3 tests/assert-fixture.py --fixture <name> --run-dir <run-dir>`: layered assertions (existence, structural, semantic, forbidden markers).
 - `tests/run-all.sh`: run the full fixture suite.
 
+## Release Trigger Routing
+- When user prompt intent matches release commands (for example `发布新版本`, `发布 xxx 版本`, `发布 vX.Y.Z`), route to repository release automation entrypoint: `./.agents/release.sh`.
+- If version is not explicit, ask for bump type (`major|minor|patch`) before running release automation.
+
 Example:
 ```bash
 run_dir="$(tests/run-fixture.sh interaction-protocol-path)"
