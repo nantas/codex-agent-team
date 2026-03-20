@@ -13,6 +13,7 @@ fixtures=(
   "final-closure-control-path"
   "relative-link-integrity-path"
   "scope-drift-recovery-path"
+  "last-breath-reassign-path"
 )
 
 pass_count=0

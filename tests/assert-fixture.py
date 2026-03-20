@@ -24,6 +24,7 @@ SUPPORTED_FIXTURES = {
     "final-closure-control-path",
     "relative-link-integrity-path",
     "scope-drift-recovery-path",
+    "last-breath-reassign-path",
 }
 
 REQUIRED_README_SECTIONS = [
@@ -632,6 +633,72 @@ def assert_scope_drift_recovery_contract(state: AssertionState, *, layer: str) -
     if not isinstance(next_actions, list) or not next_actions:
         fail("compact-recovery.next_actions must be non-empty after scope drift", layer=layer)
 
+
+def assert_last_breath_reassign_contract(state: AssertionState, *, layer: str) -> None:
+    last_breath_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/last-breaths.jsonl"
+    )
+    checkpoints_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/checkpoints.json"
+    )
+    compact_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/compact-recovery.json"
+    )
+    reports_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/reports.jsonl"
+    )
+    if (
+        last_breath_path is None
+        or checkpoints_path is None
+        or compact_path is None
+        or reports_path is None
+    ):
+        fail("missing required last-breath-reassign artifacts", layer=layer)
+
+    lines = [line for line in last_breath_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not lines:
+        fail("last-breaths.jsonl must be non-empty for last-breath-reassign fixture", layer=layer)
+    payload = json.loads(lines[-1])
+    required = {
+        "timestamp",
+        "agent_id",
+        "role_id",
+        "task_id",
+        "exit_reason",
+        "last_known_state",
+        "attempted_actions",
+        "artifacts_or_paths",
+        "open_risks",
+        "recommended_next_step",
+        "escalation_needed",
+    }
+    missing = sorted(required - set(payload.keys()))
+    if missing:
+        fail(f"last-breath entry missing required keys: {missing}", layer=layer)
+
+    checkpoints_payload = json.loads(checkpoints_path.read_text(encoding="utf-8"))
+    checkpoints = checkpoints_payload.get("checkpoints")
+    if not isinstance(checkpoints, list) or not checkpoints:
+        fail("checkpoints.json requires non-empty checkpoints array", layer=layer)
+    if not any(
+        isinstance(cp, dict) and cp.get("phase") == "post_last_breath_capture" for cp in checkpoints
+    ):
+        fail("checkpoints.json must include phase 'post_last_breath_capture'", layer=layer)
+
+    compact_payload = json.loads(compact_path.read_text(encoding="utf-8"))
+    if compact_payload.get("current_phase") != "post_last_breath_reassign":
+        fail("compact-recovery.current_phase must be 'post_last_breath_reassign'", layer=layer)
+    open_blockers = compact_payload.get("open_blockers")
+    if not isinstance(open_blockers, list) or not open_blockers:
+        fail("compact-recovery.open_blockers must be non-empty after abnormal exit", layer=layer)
+    next_actions = compact_payload.get("next_actions")
+    if not isinstance(next_actions, list) or not next_actions:
+        fail("compact-recovery.next_actions must be non-empty after reassign decision", layer=layer)
+
+    reports_text = reports_path.read_text(encoding="utf-8")
+    if "reassign" not in reports_text and "reassigned" not in reports_text:
+        fail("reports.jsonl must include reassign evidence after abnormal exit", layer=layer)
+
 def assert_existence(state: AssertionState) -> None:
     layer = "existence"
     if state.fixture not in SUPPORTED_FIXTURES:
@@ -753,6 +820,8 @@ def assert_semantic(state: AssertionState) -> None:
         assert_relative_link_integrity(state, layer=layer)
     if state.fixture == "scope-drift-recovery-path":
         assert_scope_drift_recovery_contract(state, layer=layer)
+    if state.fixture == "last-breath-reassign-path":
+        assert_last_breath_reassign_contract(state, layer=layer)
 
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
@@ -822,6 +891,14 @@ def assert_semantic(state: AssertionState) -> None:
             ],
             "artifacts": ["session.json", "panel.json", "checkpoints.json", "compact-recovery.json"],
         },
+        "last-breath-reassign-path": {
+            "markers": [
+                "specialist.exit.unexpected",
+                "last_breath.captured",
+                "last-breath-reassign-applied",
+            ],
+            "artifacts": ["last-breaths.jsonl", "checkpoints.json", "compact-recovery.json"],
+        },
     }
     rule = fixture_rules[state.fixture]
     for marker in rule["markers"]:
@@ -884,6 +961,11 @@ def assert_must_not_happen(state: AssertionState) -> None:
             "scope.drift.ignored",
             "scope.contract.updated_without_checkpoint",
             "scope.replan.skipped",
+        ],
+        "last-breath-reassign-path": [
+            "last_breath.missing",
+            "specialist.exit.ignored",
+            "reassign.skipped_after_exit",
         ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]

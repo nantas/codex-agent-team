@@ -47,6 +47,7 @@ question_ids='["q-default-1"]'
 reply_route='{"q-default-1":{"task_id":"T1","owner_role":"implementation"}}'
 last_sync_turn_id="turn-default-001"
 declare -a rendered_event_lines=()
+declare -a last_breaths_lines=()
 resource_budget='{"max_concurrent_specialists":2,"open_agent_count":1}'
 fd_downgrade='{"active": false, "trigger": null, "pause_spawn_waves": false, "mode_before": "parallel", "mode_after": "parallel", "stabilization_evidence": "not_required"}'
 workflow_status="active"
@@ -728,6 +729,54 @@ case "$fixture" in
       "suspendedAgents": []
     }'
     ;;
+  last-breath-reassign-path)
+    panel_roles='["lead", "implementation", "verification"]'
+    team_roles='["lead", "implementation", "verification"]'
+    task_owner_1="implementation"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "specialist.exit.unexpected"
+      "last_breath.captured"
+      "checkpoint.recorded"
+      "tasks.reassigned"
+      "recovery.snapshot_refreshed"
+      "last-breath-reassign-applied"
+    )
+    question_stage_id="stage-last-breath-reassign"
+    question_ids='["q-reassign-strategy"]'
+    reply_route='{"q-reassign-strategy":{"task_id":"T2","owner_role":"verification"}}'
+    last_sync_turn_id="turn-last-breath-001"
+    reports_lines=(
+      '{"task_id":"T1","role_id":"implementation","status":"failed","summary":"Specialist exited unexpectedly during implementation wave."}'
+      '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Task reassigned for containment and verification continuation."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"lead","to_role":"verification","task_id":"T1","summary":"Reassigned after last-breath capture; continue with constrained verification scope."}'
+    )
+    last_breaths_lines=(
+      '{"timestamp":"2026-03-20T06:00:00Z","agent_id":"agent-impl-77","role_id":"implementation","task_id":"T1","exit_reason":"timeout","last_known_state":"partial output persisted","attempted_actions":["update task draft","sync handoff summary"],"artifacts_or_paths":[".codex/multi-agent/reports.jsonl"],"open_risks":["implementation gap pending"],"recommended_next_step":"reassign task to verification for containment","escalation_needed":true}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-last-breath-001",
+        "phase": "post_last_breath_capture",
+        "decisions": ["ingested last-breath record", "selected reassign path"],
+        "next_step": "reassign ownership and refresh compact recovery"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-last-breath-reassign-path",
+      "approved_goal": "Validate last-breath capture and deterministic reassign flow",
+      "active_acceptance_criteria": ["last-breath recorded", "checkpoint and reassign after exit"],
+      "current_phase": "post_last_breath_reassign",
+      "open_blockers": ["implementation output incomplete after unexpected exit"],
+      "next_actions": [{"owner":"verification","task_id":"T2","action":"continue with reassigned containment plan"}],
+      "last_checkpoint_id": "cp-last-breath-001",
+      "resume_risks": ["missing last-breath data can cause duplicate investigation"],
+      "suspendedAgents": []
+    }'
+    ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
     exit 1
@@ -819,6 +868,9 @@ for line in "${handoffs_lines[@]}"; do
 done
 
 : >"$state_dir/last-breaths.jsonl"
+for line in "${last_breaths_lines[@]-}"; do
+  printf '%s\n' "$line" >>"$state_dir/last-breaths.jsonl"
+done
 
 : >"$session_dir/phase-markers.log"
 : >"$session_dir/session.log"
