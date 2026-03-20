@@ -16,6 +16,7 @@ Use this skill only when the user explicitly invokes a Codex-only multi-agent wo
 - Refresh recovery state before any compact and after any recovery-relevant event.
 - Treat `close_agent` as required resource cleanup and suspend-capable lifecycle control; resume suspended specialists with `resume_agent` + `send_input`.
 - Enforce FD/resource budgets; on `EMFILE` (`Too many open files` / `os error 24`) downgrade to `serial` and pause new spawn waves until stable.
+- Complete closure gates before ending workflow and emit an explicit final user notice before `workflow_closed`.
 - Keep `SKILL.md` short. Read the sidecar references for execution details instead of expanding the inline workflow here.
 
 ## Navigation
@@ -30,6 +31,7 @@ Read only the next file needed for the current phase:
 6. `references/communication-protocol.md`
 7. `references/checkpoints-and-recovery.md`
 8. `references/execution-rules.md`
+9. `references/deliverable-packaging.md`
 
 ## Workflow
 

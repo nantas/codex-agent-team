@@ -33,12 +33,15 @@ Use dot-delimited marker names. Recommended families:
 - `checkpoint.*`
 - `recovery.*`
 - `execution.*`
+- `delivery.*`
+- `closure.*`
 
 Markers represent normalized evidence extracted from session logs and/or artifact summaries. They are assertion targets, not required source log strings.
 
 ## Artifact Conventions
 
-- Paths are repository-relative workflow artifacts under `.codex/multi-agent/`.
+- Paths are repository-relative workflow artifacts under `.codex/multi-agent/` (including `deliverables/` subdirectories).
+- Final handoff package artifacts may live under `.codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>/`.
 - Path-plus-condition tokens are allowed using `::` separator.
 - Condition grammar is intentionally simple and string-based for V1:
   - `path::json_key=<key>`

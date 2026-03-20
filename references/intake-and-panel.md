@@ -13,6 +13,7 @@ The lead agent must first infer the following from the user request:
 - `goal`
 - `non_goals`
 - `deliverable`
+- `delivery_contract`
 - `acceptance_criteria`
 - `constraints`
 - `likely_roles`
@@ -52,6 +53,7 @@ Rules:
   - split `4/5` as `3+2`
 - If user replies with simple approval, promote `recommended_defaults` into `approved_contract`.
 - If user edits scope or acceptance criteria, rewrite `approved_contract` and mark a `checkpoint` before orchestration.
+- Delivery packaging must be explicit in `approved_contract.delivery_contract` before specialist spawn.
 - Do not spawn specialists until `approved_contract` is present and non-empty.
 
 ## Compact Example
@@ -81,9 +83,15 @@ Build a Codex multi-agent workflow skill for complex tasks. Keep it reusable and
   },
   "recommended_defaults": {
     "phase_strategy": "intake -> panel -> confirmation -> orchestration -> checkpoints",
+    "delivery_contract": {
+      "delivery_root": ".codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>",
+      "entry": "DELIVERABLE_INDEX.md",
+      "link_policy": "relative-markdown-links-only"
+    },
     "likely_roles": ["lead", "implementation", "integration", "verification"]
   },
   "needs_confirmation": [
+    "delivery_contract",
     "acceptance_criteria",
     "likely_roles"
   ],

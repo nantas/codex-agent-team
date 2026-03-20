@@ -20,6 +20,9 @@ SUPPORTED_FIXTURES = {
     "interaction-protocol-path",
     "resource-safety-path",
     "emfile-downgrade-path",
+    "deliverable-packaging-path",
+    "final-closure-control-path",
+    "relative-link-integrity-path",
 }
 
 REQUIRED_README_SECTIONS = [
@@ -469,6 +472,105 @@ def assert_interaction_display_contract(state: AssertionState, *, layer: str) ->
     if len(body_value) > 140 and not body_excerpt.endswith("..."):
         fail("long body field must be truncated with ellipsis in collapsed view", layer=layer)
 
+
+def _find_deliverable_index(state: AssertionState) -> Path:
+    candidates = [
+        p
+        for p in state.filesystem_files
+        if p.name == "DELIVERABLE_INDEX.md" and "/deliverables/" in p.as_posix()
+    ]
+    if not candidates:
+        fail("missing deliverable entry doc 'DELIVERABLE_INDEX.md' under deliverables/", layer="semantic")
+    return candidates[0]
+
+
+def assert_deliverable_packaging_contract(state: AssertionState, *, layer: str) -> None:
+    index_path = _find_deliverable_index(state)
+    manifest_path = index_path.parent / "delivery-manifest.json"
+    summary_path = index_path.parent / "closure-summary.json"
+
+    if not manifest_path.is_file():
+        fail("deliverable package missing delivery-manifest.json", layer=layer)
+    if not summary_path.is_file():
+        fail("deliverable package missing closure-summary.json", layer=layer)
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    files = manifest.get("files", manifest.get("artifacts"))
+    if not isinstance(files, list) or not files:
+        fail("delivery-manifest.json key 'files' or 'artifacts' must be a non-empty list", layer=layer)
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    attainment = summary.get("objective_attainment", summary.get("goal_attainment"))
+    if attainment in ("", [], {}, None):
+        fail(
+            "closure-summary.json must include non-empty 'objective_attainment' or 'goal_attainment'",
+            layer=layer,
+        )
+
+
+def assert_final_closure_control(state: AssertionState, *, layer: str) -> None:
+    session_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/session.json"
+    )
+    compact_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/compact-recovery.json"
+    )
+    checkpoints_path, _, _ = artifact_matches(
+        state.run_dir, state.filesystem_files, ".codex/multi-agent/checkpoints.json"
+    )
+    if session_path is None or compact_path is None or checkpoints_path is None:
+        fail("missing required closure control artifacts", layer=layer)
+
+    session_payload = json.loads(session_path.read_text(encoding="utf-8"))
+    compact_payload = json.loads(compact_path.read_text(encoding="utf-8"))
+    checkpoints_payload = json.loads(checkpoints_path.read_text(encoding="utf-8"))
+
+    if session_payload.get("workflow_status") != "closed":
+        fail("session.workflow_status must be 'closed' for final closure fixture", layer=layer)
+    if session_payload.get("final_notice_sent") is not True:
+        fail("session.final_notice_sent must be true for final closure fixture", layer=layer)
+    if not session_payload.get("delivery_root"):
+        fail("session.delivery_root must be non-empty for final closure fixture", layer=layer)
+
+    closure_state = compact_payload.get("closure_state")
+    if not isinstance(closure_state, dict):
+        fail("compact-recovery.json missing required object 'closure_state'", layer=layer)
+    if closure_state.get("phase") != "workflow_closed":
+        fail("compact-recovery.closure_state.phase must be 'workflow_closed'", layer=layer)
+    if closure_state.get("final_notice_sent") is not True:
+        fail("compact-recovery.closure_state.final_notice_sent must be true", layer=layer)
+    if closure_state.get("gate_passed") is not True:
+        fail("compact-recovery.closure_state.gate_passed must be true", layer=layer)
+
+    checkpoints = checkpoints_payload.get("checkpoints")
+    if not isinstance(checkpoints, list) or not checkpoints:
+        fail("checkpoints.json requires non-empty checkpoints array", layer=layer)
+    last_checkpoint_id = checkpoints[-1].get("checkpoint_id")
+    if compact_payload.get("last_checkpoint_id") != last_checkpoint_id:
+        fail(
+            "compact-recovery.last_checkpoint_id must match latest checkpoints.json checkpoint_id",
+            layer=layer,
+        )
+
+
+def assert_relative_link_integrity(state: AssertionState, *, layer: str) -> None:
+    index_path = _find_deliverable_index(state)
+    content = index_path.read_text(encoding="utf-8")
+    links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", content)
+    if not links:
+        fail("DELIVERABLE_INDEX.md must contain at least one markdown link", layer=layer)
+
+    for raw_link in links:
+        link = raw_link.strip()
+        if not link or link.startswith("#"):
+            continue
+        if link.startswith("/") or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", link):
+            fail(f"non-relative link detected in DELIVERABLE_INDEX.md: {link}", layer=layer)
+        path_part = link.split("#", 1)[0]
+        resolved = (index_path.parent / path_part).resolve()
+        if not resolved.exists():
+            fail(f"broken relative link in DELIVERABLE_INDEX.md: {link}", layer=layer)
+
 def assert_existence(state: AssertionState) -> None:
     layer = "existence"
     if state.fixture not in SUPPORTED_FIXTURES:
@@ -582,6 +684,12 @@ def assert_semantic(state: AssertionState) -> None:
         assert_resource_safety_contract(state, layer=layer)
     if state.fixture == "emfile-downgrade-path":
         assert_emfile_downgrade_contract(state, layer=layer)
+    if state.fixture == "deliverable-packaging-path":
+        assert_deliverable_packaging_contract(state, layer=layer)
+    if state.fixture == "final-closure-control-path":
+        assert_final_closure_control(state, layer=layer)
+    if state.fixture == "relative-link-integrity-path":
+        assert_relative_link_integrity(state, layer=layer)
 
     # Fixture-specific explicit semantic rules.
     fixture_rules = {
@@ -621,6 +729,27 @@ def assert_semantic(state: AssertionState) -> None:
                 "resource-emfile-serial-guard-active",
             ],
             "artifacts": ["session.json", "checkpoints.json", "compact-recovery.json"],
+        },
+        "deliverable-packaging-path": {
+            "markers": [
+                "delivery.packaging.completed",
+                "delivery.manifest.generated",
+            ],
+            "artifacts": ["session.json", "compact-recovery.json", "DELIVERABLE_INDEX.md"],
+        },
+        "final-closure-control-path": {
+            "markers": [
+                "closure.phase.workflow_closed",
+                "closure.notice.sent",
+            ],
+            "artifacts": ["session.json", "checkpoints.json", "compact-recovery.json"],
+        },
+        "relative-link-integrity-path": {
+            "markers": [
+                "delivery.links.relative_enforced",
+                "delivery.links.integrity_checked",
+            ],
+            "artifacts": ["DELIVERABLE_INDEX.md", "delivery-manifest.json"],
         },
     }
     rule = fixture_rules[state.fixture]
@@ -665,6 +794,20 @@ def assert_must_not_happen(state: AssertionState) -> None:
             "resource.emfile_spawn_wave_continued",
             "resource.emfile_downgrade_undocumented",
             "resource.emfile_parallel_before_stable",
+        ],
+        "deliverable-packaging-path": [
+            "delivery.packaging.skipped",
+            "delivery.entry.missing",
+            "delivery.manifest.missing",
+        ],
+        "final-closure-control-path": [
+            "closure.phase.skip_detected",
+            "closure.notice.missing",
+            "closure.closed_without_notice",
+        ],
+        "relative-link-integrity-path": [
+            "delivery.links.absolute_path_detected",
+            "delivery.links.broken_reference",
         ],
     }
     forbidden = forbidden + fixture_forbidden[state.fixture]

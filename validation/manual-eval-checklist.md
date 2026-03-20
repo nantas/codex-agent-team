@@ -88,6 +88,26 @@ Fail signal:
 Fail signal:
 - Worker spawns continue during active FD exhaustion, or downgrade/recovery is undocumented.
 
+### C9. Final deliverable packaging clarity (maps to `BS-07`)
+
+- [ ] Workflow produced a themed final package under `.codex/multi-agent/deliverables/<topic>-<date>-<session_id>/`.
+- [ ] Package includes `DELIVERABLE_INDEX.md`, `delivery-manifest.json`, and `closure-summary.json`.
+- [ ] `DELIVERABLE_INDEX.md` presents macro synthesis and acceptance status, not just raw issue links.
+- [ ] Sidecar references in `DELIVERABLE_INDEX.md` use relative Markdown links.
+
+Fail signal:
+- Outputs remain only in generic `artifacts/` with no clear final handoff package and entry document.
+
+### C10. Explicit workflow closure signal (maps to `BS-08`)
+
+- [ ] Closure phases reached `workflow_closed` after required gates.
+- [ ] Lead sent a final user-facing completion message with attainment summary and entry path.
+- [ ] `session.json` persisted `workflow_status=closed` and closure metadata.
+- [ ] `session.json`, `checkpoints.json`, and `compact-recovery.json` closure state is consistent.
+
+Fail signal:
+- Workflow stops without explicit completion signaling or without closed-state persistence.
+
 ## Evaluation Result
 
 - Overall status: `PASS` or `FAIL`

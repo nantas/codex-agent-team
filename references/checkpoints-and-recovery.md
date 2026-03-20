@@ -16,6 +16,11 @@ The lead coordinator must run a checkpoint at each trigger below.
 - before integration
 - before acceptance review
 - before final wrap-up
+- at each closure phase boundary:
+  - `synthesis_done` -> `delivery_packaging`
+  - `delivery_packaging` -> `closure_review`
+  - `closure_review` -> `user_final_notice`
+  - `user_final_notice` -> `workflow_closed`
 
 ### Condition-based triggers
 
@@ -37,6 +42,7 @@ Each checkpoint must perform all actions:
 5. Refresh compact state: overwrite `compact-recovery.json` with minimal fresh resume payload.
 6. Refresh suspended agent state: persist `suspendedAgents` inventory with resume-critical metadata.
 7. Declare next safe resume point: define the immediate next step and owner.
+8. Keep closure sync: ensure `checkpoints.json`, `session.json`, and `compact-recovery.json` agree on closure phase and checkpoint id.
 
 If any step is skipped, checkpoint is incomplete and compact should not proceed.
 
@@ -68,8 +74,21 @@ Rule: snapshots first, logs second. Do not reconstruct the full timeline unless 
 - `last_checkpoint_id`
 - `resume_risks`
 - `suspendedAgents` (array of `{agent_id, role_id, task_id, status, suspend_reason, handoff_checkpoint_id, resume_input}` entries)
+- `closure_state` (object with `{phase, gate_passed, final_notice_sent, delivery_entry_path}`)
 
 Do not include long narrative history.
+
+## Final Notice Contract
+
+At `user_final_notice`, the lead must emit one explicit user-facing completion message that includes:
+
+- completion signal (`workflow complete` style statement);
+- objective attainment summary;
+- final deliverable entry path;
+- unresolved items;
+- resume point for follow-up work (or explicit `none`).
+
+Before `workflow_closed`, checkpoint must persist that this final notice was sent and that closure state is synchronized in `session.json` and `compact-recovery.json`.
 
 ## Deterministic Resume Playbook
 

@@ -69,6 +69,26 @@ Use these as RED baselines, then compare against the checklist in `validation/ma
 - Clarification routing is ambiguous and workers receive extra irrelevant context.
 - Interaction state cannot be reconstructed from shared state fields.
 
+## Scenario BS-07: Deliverables mixed into generic artifacts with no clear handoff package
+
+**Pressure case**
+- Workflow writes outputs only into generic runtime evidence surfaces and never assembles a themed final deliverables package.
+
+**Observable bad outcome**
+- User cannot tell which files are final handoff outputs.
+- Entry document is missing or too weak for decision-level consumption.
+- Follow-up agents must re-scan many raw files to infer final outcomes.
+
+## Scenario BS-08: Workflow appears finished without explicit closure signal
+
+**Pressure case**
+- Lead stops orchestration after synthesis/checkpoint but does not complete closure gates or send an explicit final completion notice.
+
+**Observable bad outcome**
+- `session.json` and `compact-recovery.json` closure state drifts or remains ambiguous.
+- User cannot clearly tell whether workflow is done or paused.
+- Subsequent resumption may duplicate closure work or skip required finish steps.
+
 ## Pass/Fail Signal for Baseline Runs
 
 For baseline RED validation, each scenario is considered reproduced if at least one listed observable outcome appears.

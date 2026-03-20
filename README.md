@@ -8,11 +8,24 @@ Current interaction baseline:
 - lead-owned `request_user_input` collection with structured routing
 - no direct user-to-subagent interaction in `parallel`
 
+Current closure and handoff baseline:
+
+- final outputs must be packaged under `.codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>/`
+- package entry is `DELIVERABLE_INDEX.md` with relative sidecar links
+- workflow completion requires explicit final user notice before `workflow_closed`
+
 Resource safety baseline:
 
 - `close_agent` cleanup is mandatory after specialist handoff/completion.
 - `close_agent` is treated as suspend-capable; context is recoverable via `resume_agent`.
 - FD/resource budgets are required, with `EMFILE` (`Too many open files` / `os error 24`) auto-downgrade to `serial` until stable.
+
+Final handoff baseline:
+
+- Runtime evidence remains under `.codex/multi-agent/artifacts/`.
+- Final handoff package must be produced under `.codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>/`.
+- Entry document must be `DELIVERABLE_INDEX.md` with relative Markdown sidecar links.
+- Workflow must not stop before explicit final user notice and `workflow_status=closed`.
 
 ## Install For Agents
 

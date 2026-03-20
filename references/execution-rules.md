@@ -84,6 +84,22 @@ Specialists must escalate immediately when:
 - Key peer outcomes must be reflected in `tasks.json` and/or `handoffs.jsonl`.
 - Before phase transitions, lead must checkpoint and refresh `compact-recovery.json`.
 
+## Closure Gate Discipline
+
+- Final closure must follow this fixed phase chain without reordering:
+  `synthesis_done` -> `delivery_packaging` -> `closure_review` -> `user_final_notice` -> `workflow_closed`.
+- Lead must not advance to the next closure phase if the previous phase gate is incomplete.
+- Lead must not claim finish, stop orchestration, or declare completion before `workflow_closed`.
+- `delivery_packaging` gate requires deliverable package entry path persisted in shared state.
+- `closure_review` gate requires explicit review of objective attainment, unresolved items, and recovery resume point.
+- `user_final_notice` gate requires a lead-owned final user message with:
+  - explicit completion signal;
+  - objective attainment summary;
+  - deliverable entry path;
+  - unresolved items;
+  - resume point (if follow-up is needed).
+- `workflow_closed` gate requires `session.json` to be updated to closed status and `compact-recovery.json` to reference the same final checkpoint id.
+
 ## Compact Discipline
 
 - Compact is allowed only after checkpoint-style state externalization is complete.

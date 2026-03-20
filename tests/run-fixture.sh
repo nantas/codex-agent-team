@@ -49,6 +49,11 @@ last_sync_turn_id="turn-default-001"
 declare -a rendered_event_lines=()
 resource_budget='{"max_concurrent_specialists":2,"open_agent_count":1}'
 fd_downgrade='{"active": false, "trigger": null, "pause_spawn_waves": false, "mode_before": "parallel", "mode_after": "parallel", "stabilization_evidence": "not_required"}'
+workflow_status="active"
+final_notice_sent="false"
+delivery_root="null"
+closed_at="null"
+delivery_contract='{"delivery_root":null,"entry":null,"link_policy":"relative-markdown-links-only"}'
 
 case "$fixture" in
   basic-happy-path)
@@ -490,6 +495,175 @@ case "$fixture" in
       "suspendedAgents": []
     }'
     ;;
+  deliverable-packaging-path)
+    panel_roles='["lead", "synthesis", "verification"]'
+    team_roles='["lead", "synthesis", "verification"]'
+    task_owner_1="synthesis"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "checkpoint.recorded"
+      "delivery.packaging.started"
+      "delivery.entry.index_generated"
+      "delivery.manifest.generated"
+      "closure.summary.generated"
+      "delivery.packaging.completed"
+    )
+    question_stage_id="stage-delivery-packaging"
+    question_ids='["q-delivery-package-ready"]'
+    reply_route='{"q-delivery-package-ready":{"task_id":"T2","owner_role":"verification"}}'
+    last_sync_turn_id="turn-delivery-001"
+    workflow_status="closing"
+    delivery_root='".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-deliverable"'
+    delivery_contract='{"delivery_root":".codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>","entry":"DELIVERABLE_INDEX.md","link_policy":"relative-markdown-links-only"}'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"synthesis","status":"done","summary":"Prepared baseline synthesis package content."}'
+      '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Checking deliverable package completeness."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"synthesis","to_role":"verification","task_id":"T1","summary":"Deliverable package ready for final completeness check."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-delivery-001",
+        "phase": "delivery_packaging",
+        "decisions": ["package path fixed", "entry+manifest+closure summary required"],
+        "next_step": "run closure completeness review"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-deliverable-packaging-path",
+      "approved_goal": "Validate deliverable packaging contract",
+      "active_acceptance_criteria": ["themed deliverable directory", "required package files present"],
+      "current_phase": "closure_review",
+      "workflow_status": "closing",
+      "final_notice_sent": false,
+      "delivery_root": ".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-deliverable",
+      "open_blockers": [],
+      "next_actions": [{"owner":"verification","task_id":"T2","action":"validate package completeness and link policy"}],
+      "last_checkpoint_id": "cp-delivery-001",
+      "resume_risks": [],
+      "suspendedAgents": [],
+      "closure_state": {"phase":"closure_review","gate_passed":true,"final_notice_sent":false,"delivery_entry_path":".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-deliverable/DELIVERABLE_INDEX.md"}
+    }'
+    ;;
+  final-closure-control-path)
+    panel_roles='["lead", "synthesis", "verification"]'
+    team_roles='["lead", "synthesis", "verification"]'
+    task_owner_1="synthesis"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "checkpoint.recorded"
+      "closure.phase.synthesis_done"
+      "closure.phase.delivery_packaging"
+      "closure.phase.closure_review"
+      "closure.phase.user_final_notice"
+      "closure.notice.sent"
+      "closure.phase.workflow_closed"
+    )
+    question_stage_id="stage-final-closure"
+    question_ids='["q-final-closure-ack"]'
+    reply_route='{"q-final-closure-ack":{"task_id":"T2","owner_role":"verification"}}'
+    last_sync_turn_id="turn-closure-001"
+    workflow_status="closed"
+    final_notice_sent="true"
+    delivery_root='".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-closure"'
+    closed_at='"20260320T120500Z"'
+    delivery_contract='{"delivery_root":".codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>","entry":"DELIVERABLE_INDEX.md","link_policy":"relative-markdown-links-only"}'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"synthesis","status":"done","summary":"Completed closure review and objective attainment summary."}'
+      '{"task_id":"T2","role_id":"verification","status":"done","summary":"Validated final notice and closed-state persistence."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"lead","to_role":"verification","task_id":"T1","summary":"Final notice sent; validate workflow closed state."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-closure-001",
+        "phase": "delivery_packaging",
+        "decisions": ["delivery package completed"],
+        "next_step": "run closure review"
+      },
+      {
+        "checkpoint_id": "cp-closure-002",
+        "phase": "user_final_notice",
+        "decisions": ["final notice emitted to user"],
+        "next_step": "persist closed state"
+      },
+      {
+        "checkpoint_id": "cp-closure-003",
+        "phase": "workflow_closed",
+        "decisions": ["workflow marked closed"],
+        "next_step": "stop orchestration"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-final-closure-control-path",
+      "approved_goal": "Validate hard closure gates and explicit completion signaling",
+      "active_acceptance_criteria": ["closure chain respected", "final notice sent before closed"],
+      "current_phase": "workflow_closed",
+      "workflow_status": "closed",
+      "final_notice_sent": true,
+      "delivery_root": ".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-closure",
+      "open_blockers": [],
+      "next_actions": [{"owner":"lead","task_id":"NONE","action":"none"}],
+      "last_checkpoint_id": "cp-closure-003",
+      "resume_risks": [],
+      "suspendedAgents": [],
+      "closure_state": {"phase":"workflow_closed","gate_passed":true,"final_notice_sent":true,"delivery_entry_path":".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-closure/DELIVERABLE_INDEX.md"}
+    }'
+    ;;
+  relative-link-integrity-path)
+    panel_roles='["lead", "synthesis", "verification"]'
+    team_roles='["lead", "synthesis", "verification"]'
+    task_owner_1="synthesis"
+    task_owner_2="verification"
+    markers=(
+      "panel.confirmed"
+      "delivery.entry.index_generated"
+      "delivery.links.relative_enforced"
+      "delivery.links.integrity_checked"
+      "checkpoint.recorded"
+    )
+    question_stage_id="stage-relative-link-check"
+    question_ids='["q-link-integrity-pass"]'
+    reply_route='{"q-link-integrity-pass":{"task_id":"T2","owner_role":"verification"}}'
+    last_sync_turn_id="turn-links-001"
+    workflow_status="closing"
+    delivery_root='".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-links"'
+    delivery_contract='{"delivery_root":".codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>","entry":"DELIVERABLE_INDEX.md","link_policy":"relative-markdown-links-only"}'
+    reports_lines=(
+      '{"task_id":"T1","role_id":"synthesis","status":"done","summary":"Generated deliverable index with sidecar links."}'
+      '{"task_id":"T2","role_id":"verification","status":"in_progress","summary":"Validating relative-link integrity and target presence."}'
+    )
+    handoffs_lines=(
+      '{"from_role":"synthesis","to_role":"verification","task_id":"T1","summary":"Entry doc links ready for integrity validation."}'
+    )
+    checkpoints_payload='[
+      {
+        "checkpoint_id": "cp-links-001",
+        "phase": "closure_review",
+        "decisions": ["relative link policy applied"],
+        "next_step": "verify all sidecar links resolve"
+      }
+    ]'
+    compact_recovery='{
+      "session_id": "sess-relative-link-integrity-path",
+      "approved_goal": "Validate relative markdown link integrity in final entry doc",
+      "active_acceptance_criteria": ["links relative", "link targets exist"],
+      "current_phase": "closure_review",
+      "workflow_status": "closing",
+      "final_notice_sent": false,
+      "delivery_root": ".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-links",
+      "open_blockers": [],
+      "next_actions": [{"owner":"verification","task_id":"T2","action":"validate all entry-doc links resolve to existing files"}],
+      "last_checkpoint_id": "cp-links-001",
+      "resume_risks": [],
+      "suspendedAgents": [],
+      "closure_state": {"phase":"closure_review","gate_passed":true,"final_notice_sent":false,"delivery_entry_path":".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-links/DELIVERABLE_INDEX.md"}
+    }'
+    ;;
   *)
     echo "Unsupported fixture: $fixture" >&2
     exit 1
@@ -503,6 +677,10 @@ cat >"$state_dir/session.json" <<EOF
   "mode": "with-codex-agent-team",
   "current_phase": "in_progress",
   "execution_mode": "$execution_mode",
+  "workflow_status": "$workflow_status",
+  "final_notice_sent": $final_notice_sent,
+  "delivery_root": $delivery_root,
+  "closed_at": $closed_at,
   "resource_budget": $resource_budget,
   "fd_downgrade": $fd_downgrade,
   "awaiting_user_reply": $awaiting_user_reply,
@@ -528,7 +706,8 @@ cat >"$state_dir/panel.json" <<EOF
   "approved_contract": {
     "fixture": "$fixture",
     "roles": $panel_roles,
-    "acceptance_criteria": ["workflow correctness", "dual evidence"]
+    "acceptance_criteria": ["workflow correctness", "dual evidence"],
+    "delivery_contract": $delivery_contract
   }
 }
 EOF
@@ -586,6 +765,168 @@ if (( ${#rendered_event_lines[@]} > 0 )); then
   for line in "${rendered_event_lines[@]}"; do
     printf '%s\n' "$line" >>"$session_dir/session.log"
   done
+fi
+
+if [[ "$fixture" == "deliverable-packaging-path" ]]; then
+  delivery_dir="$state_dir/deliverables/baseline-synthesis-20260320-sess-deliverable"
+  mkdir -p "$delivery_dir"
+  cat >"$delivery_dir/DELIVERABLE_INDEX.md" <<'EOF'
+# Deliverable Index
+
+## Goal and scope
+Baseline synthesis package for issue evidence.
+
+## Macro synthesis
+Fact-source split and closure controls are now explicit.
+
+## Acceptance matrix
+| criterion | status | evidence |
+|---|---|---|
+| package generated | pass | [delivery-manifest.json](./delivery-manifest.json) |
+
+## Open risks and unresolved items
+- Runtime autotest logs still need follow-up collection.
+
+## Artifact index
+- [delivery-manifest.json](./delivery-manifest.json)
+- [closure-summary.json](./closure-summary.json)
+
+## Next steps
+1. Start improvement design from this package.
+
+## Metadata
+- session_id: sess-deliverable-packaging-path
+- checkpoint_id: cp-delivery-001
+- generated_at: 20260320T120000Z
+- owner: lead
+EOF
+  cat >"$delivery_dir/delivery-manifest.json" <<'EOF'
+{
+  "session_id": "sess-deliverable-packaging-path",
+  "topic": "baseline-synthesis",
+  "generated_at": "20260320T120000Z",
+  "entry": "DELIVERABLE_INDEX.md",
+  "files": ["DELIVERABLE_INDEX.md", "closure-summary.json"]
+}
+EOF
+  cat >"$delivery_dir/closure-summary.json" <<'EOF'
+{
+  "workflow_status": "closing",
+  "objective_attainment": "partial",
+  "delivery_root": ".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-deliverable",
+  "final_notice_sent": false,
+  "remaining_items": ["emit final user notice"]
+}
+EOF
+fi
+
+if [[ "$fixture" == "final-closure-control-path" ]]; then
+  delivery_dir="$state_dir/deliverables/baseline-synthesis-20260320-sess-closure"
+  mkdir -p "$delivery_dir"
+  cat >"$delivery_dir/DELIVERABLE_INDEX.md" <<'EOF'
+# Deliverable Index
+
+## Goal and scope
+Finalize closure control package.
+
+## Macro synthesis
+Closure gates completed in fixed order and explicitly closed.
+
+## Acceptance matrix
+| criterion | status | evidence |
+|---|---|---|
+| final notice sent | pass | [closure-summary.json](./closure-summary.json) |
+
+## Open risks and unresolved items
+- none
+
+## Artifact index
+- [delivery-manifest.json](./delivery-manifest.json)
+- [closure-summary.json](./closure-summary.json)
+
+## Next steps
+1. Stop orchestration.
+
+## Metadata
+- session_id: sess-final-closure-control-path
+- checkpoint_id: cp-closure-003
+- generated_at: 20260320T120500Z
+- owner: lead
+EOF
+  cat >"$delivery_dir/delivery-manifest.json" <<'EOF'
+{
+  "session_id": "sess-final-closure-control-path",
+  "topic": "baseline-synthesis",
+  "generated_at": "20260320T120500Z",
+  "entry": "DELIVERABLE_INDEX.md",
+  "artifacts": ["closure-summary.json"]
+}
+EOF
+  cat >"$delivery_dir/closure-summary.json" <<'EOF'
+{
+  "workflow_status": "closed",
+  "goal_attainment": "complete",
+  "delivery_root": ".codex/multi-agent/deliverables/baseline-synthesis-20260320-sess-closure",
+  "final_notice_sent": true,
+  "remaining_items": []
+}
+EOF
+fi
+
+if [[ "$fixture" == "relative-link-integrity-path" ]]; then
+  delivery_dir="$state_dir/deliverables/baseline-synthesis-20260320-sess-links"
+  mkdir -p "$delivery_dir"
+  cat >"$delivery_dir/issue-01.md" <<'EOF'
+# Issue 01
+
+Evidence note.
+EOF
+  cat >"$delivery_dir/issue-02.md" <<'EOF'
+# Issue 02
+
+Evidence note.
+EOF
+  cat >"$delivery_dir/DELIVERABLE_INDEX.md" <<'EOF'
+# Deliverable Index
+
+## Goal and scope
+Validate relative markdown links in entry doc.
+
+## Macro synthesis
+All sidecar references use local relative paths.
+
+## Acceptance matrix
+| criterion | status | evidence |
+|---|---|---|
+| relative links only | pass | [issue-01.md](./issue-01.md) |
+| link targets exist | pass | [issue-02.md](./issue-02.md) |
+
+## Open risks and unresolved items
+- none
+
+## Artifact index
+- [issue-01.md](./issue-01.md)
+- [issue-02.md](./issue-02.md)
+- [delivery-manifest.json](./delivery-manifest.json)
+
+## Next steps
+1. Apply same link policy to production runs.
+
+## Metadata
+- session_id: sess-relative-link-integrity-path
+- checkpoint_id: cp-links-001
+- generated_at: 20260320T121000Z
+- owner: lead
+EOF
+  cat >"$delivery_dir/delivery-manifest.json" <<'EOF'
+{
+  "session_id": "sess-relative-link-integrity-path",
+  "topic": "baseline-synthesis",
+  "generated_at": "20260320T121000Z",
+  "entry": "DELIVERABLE_INDEX.md",
+  "files": ["DELIVERABLE_INDEX.md", "issue-01.md", "issue-02.md"]
+}
+EOF
 fi
 
 printf 'run_dir=%s\n' "$run_dir" >>"$session_dir/session.log"

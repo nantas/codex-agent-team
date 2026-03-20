@@ -44,15 +44,15 @@ If specialist work changes contract truth, the lead applies updates during a `ch
 
 ## Update Triggers
 
-- `session.json`: initialize at session start; update on mode/phase transitions and user-interaction stage transitions.
-- `panel.json`: write draft at intake; rewrite when `approved_contract` changes.
+- `session.json`: initialize at session start; update on mode/phase transitions, closure transitions, delivery packaging completion, and user-interaction stage transitions.
+- `panel.json`: write draft at intake; rewrite when `approved_contract` changes (including `delivery_contract`).
 - `team.json`: refresh after team formation or role roster changes.
 - `tasks.json`: refresh after assignment wave, status transitions, blocker resolution, or acceptance updates.
 - `checkpoints.json`: append at every mandatory `checkpoint`.
 - `reports.jsonl`: append on specialist status emission and key observations.
 - `handoffs.jsonl`: append on dependency handoff or completed sub-scope transfer.
 - `last-breaths.jsonl`: append immediately on abnormal agent exit/interruption.
-- `compact-recovery.json`: refresh at each `checkpoint`, before likely compact, and before integration/acceptance review.
+- `compact-recovery.json`: refresh at each `checkpoint`, before likely compact, before integration/acceptance review, and after any closure-gate transition.
 
 ## Interaction State Keys
 
@@ -67,11 +67,44 @@ For every active clarification stage, lead-owned snapshots must include:
 - `reply_route` (question id to task/owner mapping)
 - `last_sync_turn_id`
 
+## Closure State Keys
+
+For deterministic final-wrap-up and explicit workflow completion signaling:
+
+- `session.json` MUST include:
+  - `workflow_status`: `active | closing | closed`
+  - `final_notice_sent`: `true | false`
+  - `delivery_root`: finalized deliverable package path under `.codex/multi-agent/deliverables/`
+  - `closed_at`: UTC timestamp when workflow reaches `closed`
+- `panel.json.approved_contract` SHOULD include `delivery_contract` so output structure is approved before orchestration.
+- `compact-recovery.json` MUST carry closure-resume-critical fields:
+  - `current_phase`
+  - `workflow_status`
+  - `final_notice_sent`
+  - `delivery_root`
+  - `last_checkpoint_id`
+  - `next_actions`
+  - `resume_risks`
+
 Canonical behavior and constraints are defined in:
 
 - `references/parallel-user-interaction.md`
 
 ## Minimal JSON Examples
+
+### `session.json`
+
+```json
+{
+  "session_id": "sess-001",
+  "current_phase": "closure_review",
+  "execution_mode": "parallel",
+  "workflow_status": "closing",
+  "final_notice_sent": false,
+  "delivery_root": ".codex/multi-agent/deliverables/harness-baseline-20260320-sess-001",
+  "closed_at": null
+}
+```
 
 ### `panel.json`
 
@@ -91,7 +124,12 @@ Canonical behavior and constraints are defined in:
     "acceptance_criteria": [
       "panel before orchestration",
       "compact recovery maintained"
-    ]
+    ],
+    "delivery_contract": {
+      "root": ".codex/multi-agent/deliverables/<topic>-<YYYYMMDD>-<session_id>",
+      "entry_doc": "DELIVERABLE_INDEX.md",
+      "link_policy": "relative_markdown_only"
+    }
   }
 }
 ```
@@ -121,11 +159,22 @@ Canonical behavior and constraints are defined in:
 
 ```json
 {
-  "checkpoint_id": "cp-004",
-  "approved_contract_digest": "goal fixed, acceptance fixed, scope unchanged",
-  "active_tasks": ["T4"],
+  "session_id": "sess-001",
+  "current_phase": "user_final_notice",
+  "workflow_status": "closing",
+  "final_notice_sent": false,
+  "delivery_root": ".codex/multi-agent/deliverables/harness-baseline-20260320-sess-001",
   "open_blockers": [],
-  "awaiting_user_reply": false,
-  "next_safe_resume_point": "assign integration review after T4 complete"
+  "next_actions": [
+    {
+      "owner": "lead-coordinator",
+      "task_id": "CLOSE-1",
+      "action": "send final user notice and mark workflow closed"
+    }
+  ],
+  "last_checkpoint_id": "cp-closure-003",
+  "resume_risks": [
+    "closure gate can drift if final notice is not persisted"
+  ]
 }
 ```

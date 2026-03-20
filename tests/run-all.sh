@@ -9,6 +9,9 @@ fixtures=(
   "interaction-protocol-path"
   "resource-safety-path"
   "emfile-downgrade-path"
+  "deliverable-packaging-path"
+  "final-closure-control-path"
+  "relative-link-integrity-path"
 )
 
 pass_count=0
